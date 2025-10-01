@@ -56,6 +56,7 @@ begin
     var LErrorIfNotSigned: Boolean := False;
 
     if not TryStrToBool(LErrorIfNotSignedStr, LErrorIfNotSigned) then
+      LErrorIfNotSigned := False;
     begin
       SetParamValueError(PARAM_ERROR_IF_NOT_SIGNED, 'Value was not proper Boolean value <True|False>');
       Exit;
