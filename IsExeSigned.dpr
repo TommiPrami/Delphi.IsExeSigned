@@ -14,14 +14,15 @@ const
   EXIT_CODE_NOT_SIGNED = 1;
   EXIT_CODE_PARAM_NOT_FOUND = 2;
   EXIT_CODE_PARAM_VALUE_ERROR = 3;
+  EXIT_CODE_EXCEPTION = 4;
 
-function GetCmdLineSwitch(const ASwitchName: string; var ASwitchValue: string): Boolean;
+function GetCmdLineSwitch(const ASwitchName: string; var ASwitchValue: string; const AParamIsMandatory: Boolean = True): Boolean;
 begin
   Result := FindCmdLineSwitch(ASwitchName, ASwitchValue);
 
   Result := Result and not ASwitchValue.IsEmpty;
 
-  if not Result then
+  if not Result and AParamIsMandatory then
   begin
     Writeln('Parameter ' + ASwitchName.QuotedString('"') + ' not found or don''t have value');
     ExitCode := EXIT_CODE_PARAM_NOT_FOUND;
@@ -44,8 +45,7 @@ begin
       Exit;
 
     var LErrorIfNotSignedStr: string;
-    if not GetCmdLineSwitch(PARAM_ERROR_IF_NOT_SIGNED, LErrorIfNotSignedStr) then
-      Exit;
+    GetCmdLineSwitch(PARAM_ERROR_IF_NOT_SIGNED, LErrorIfNotSignedStr, False);
 
     if not FileExists(LFileName) then
     begin
@@ -54,7 +54,6 @@ begin
     end;
 
     var LErrorIfNotSigned: Boolean := False;
-
     if not TryStrToBool(LErrorIfNotSignedStr, LErrorIfNotSigned) then
       LErrorIfNotSigned := False;
 
@@ -74,6 +73,10 @@ begin
     end;
   except
     on E: Exception do
+    begin
       Writeln(E.ClassName, ': ', E.Message);
+      ExitCode := EXIT_CODE_EXCEPTION;
+    end;
   end;
 end.
+
