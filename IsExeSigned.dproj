@@ -4,7 +4,7 @@
         <ProjectVersion>20.3</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Debug</Config>
+        <Config Condition="'$(Config)'==''">Release</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <ProjectName Condition="'$(ProjectName)'==''">IsExeSigned</ProjectName>
         <TargetedPlatforms>1</TargetedPlatforms>
@@ -40,6 +40,12 @@
         <CfgParent>Base</CfgParent>
         <Base>true</Base>
     </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Cfg_2)'=='true') or '$(Cfg_2_Win32)'!=''">
+        <Cfg_2_Win32>true</Cfg_2_Win32>
+        <CfgParent>Cfg_2</CfgParent>
+        <Cfg_2>true</Cfg_2>
+        <Base>true</Base>
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
         <DCC_DcuOutput>.\$(Platform)\$(Config)</DCC_DcuOutput>
         <DCC_ExeOutput>.\$(Platform)\$(Config)</DCC_ExeOutput>
@@ -52,9 +58,9 @@
         <SanitizedProjectName>IsExeSigned</SanitizedProjectName>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Release>1</VerInfo_Release>
-        <VerInfo_Build>1</VerInfo_Build>
+        <VerInfo_Build>2</VerInfo_Build>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.1.1;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=tee.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.1.1;Comments=</VerInfo_Keys>
+        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.1.2;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=tee.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.1.2;Comments=</VerInfo_Keys>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <DCC_UsePackage>vclwinx;STComponents.D12.Runtime;fmx;vclie;DbxCommonDriver;bindengine;IndyIPCommon;VCLRESTComponents;FireDACCommonODBC;OpenTools.Common;FireDACCommonDriver;appanalytics;IndyProtocols;vclx;Skia.Package.RTL;THComponents.D12.Runtime;IndyIPClient;dbxcds;vcledge;bindcompvclwinx;TextEditor.Delphi.Athens.Runtime;bindcompfmx;crcontrols290;inetdb;dacvcl290;FireDACSqliteDriver;DbxClientDriver;GR32_R;JclVcl;soapmidas;vclactnband;fmxFireDAC;dbexpress;Jcl;OpenTools.UsesCleaner;DBXMySQLDriver;VclSmp;inet;OpenTools.CodeSorter;vcltouch;fmxase;dbrtl;Skia.Package.FMX;fmxdae;OpenTools.DCU32;STLisenssit.D12.Runtime;FireDACMSAccDriver;CustomIPTransport;JclDeveloperTools;vcldsnap;DBXInterBaseDriver;IndySystem;OpenTools.UsesFormatter;Jedi.D12.Runtime;Skia.Package.VCL;vcldb;STCommon.D12.Runtime;VirtualTreesR;JclContainers;QuickReport.Runtime;vclFireDAC;EhLib.Delphi.Athens.Runtime;bindcomp;FireDACCommon;RVQRWrapperDAthens;inetstn;IndyCore;RESTBackendComponents;bindcompdbx;rtl;FireDACMySQLDriver;STDualList.D12.Runtime;FireDACADSDriver;ibdac290;RESTComponents;DBXSqliteDriver;vcl;IndyIPServer;dsnapxml;dsnapcon;adortl;dac290;FixInsight_12;vclimg;Jedi.D12.Designtime;FireDACPgDriver;FireDAC;inetdbxpress;xmlrtl;tethering;bindcompvcl;dsnap;CloudService;fmxobj;bindcompvclsmp;SVGIconImageList;soaprtl;ibdacvcl290;soapserver;FireDACIBDriver;$(DCC_UsePackage)</DCC_UsePackage>
@@ -94,6 +100,13 @@
         <DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
         <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
         <DCC_DebugInformation>0</DCC_DebugInformation>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
+        <VerInfo_Release>0</VerInfo_Release>
+        <VerInfo_Build>0</VerInfo_Build>
+        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
+        <Manifest_File>(None)</Manifest_File>
+        <AppDPIAwarenessMode>none</AppDPIAwarenessMode>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
