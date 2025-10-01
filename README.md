@@ -2,7 +2,9 @@
 
 A small utility to check if an `.exe` file is signed and grab the signer’s name.  
 
-⚠️ Note: This tool **does not validate the signature** (at least not yet) — I just haven’t needed that so far. Right now it’s mainly used in CI as a sanity check: making sure the `.exe` files that *should* be signed actually are.  
+⚠️ Note: This tool **does not validate the signature** (at least not yet) — I just haven’t needed that so far.
+
+Right now it’s mainly used in CI as a sanity check: making sure the `.exe` files that *should* be signed actually are.  
 
 ## Usage
 
