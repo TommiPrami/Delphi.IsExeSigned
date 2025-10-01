@@ -58,9 +58,9 @@
         <SanitizedProjectName>IsExeSigned</SanitizedProjectName>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Release>1</VerInfo_Release>
-        <VerInfo_Build>2</VerInfo_Build>
+        <VerInfo_Build>3</VerInfo_Build>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.1.2;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=tee.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.1.2;Comments=</VerInfo_Keys>
+        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.1.3;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=tee.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.1.3;Comments=</VerInfo_Keys>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <DCC_UsePackage>vclwinx;STComponents.D12.Runtime;fmx;vclie;DbxCommonDriver;bindengine;IndyIPCommon;VCLRESTComponents;FireDACCommonODBC;OpenTools.Common;FireDACCommonDriver;appanalytics;IndyProtocols;vclx;Skia.Package.RTL;THComponents.D12.Runtime;IndyIPClient;dbxcds;vcledge;bindcompvclwinx;TextEditor.Delphi.Athens.Runtime;bindcompfmx;crcontrols290;inetdb;dacvcl290;FireDACSqliteDriver;DbxClientDriver;GR32_R;JclVcl;soapmidas;vclactnband;fmxFireDAC;dbexpress;Jcl;OpenTools.UsesCleaner;DBXMySQLDriver;VclSmp;inet;OpenTools.CodeSorter;vcltouch;fmxase;dbrtl;Skia.Package.FMX;fmxdae;OpenTools.DCU32;STLisenssit.D12.Runtime;FireDACMSAccDriver;CustomIPTransport;JclDeveloperTools;vcldsnap;DBXInterBaseDriver;IndySystem;OpenTools.UsesFormatter;Jedi.D12.Runtime;Skia.Package.VCL;vcldb;STCommon.D12.Runtime;VirtualTreesR;JclContainers;QuickReport.Runtime;vclFireDAC;EhLib.Delphi.Athens.Runtime;bindcomp;FireDACCommon;RVQRWrapperDAthens;inetstn;IndyCore;RESTBackendComponents;bindcompdbx;rtl;FireDACMySQLDriver;STDualList.D12.Runtime;FireDACADSDriver;ibdac290;RESTComponents;DBXSqliteDriver;vcl;IndyIPServer;dsnapxml;dsnapcon;adortl;dac290;FixInsight_12;vclimg;Jedi.D12.Designtime;FireDACPgDriver;FireDAC;inetdbxpress;xmlrtl;tethering;bindcompvcl;dsnap;CloudService;fmxobj;bindcompvclsmp;SVGIconImageList;soaprtl;ibdacvcl290;soapserver;FireDACIBDriver;$(DCC_UsePackage)</DCC_UsePackage>
