@@ -6,7 +6,7 @@ uses
   Winapi.Windows;
 
 {
-  Types, Conmsts and WinApi declarations.
+  Types, Consts and WinApi declarations.
 }
 
 const
@@ -15,7 +15,7 @@ const
   CERT_QUERY_FORMAT_FLAG_BINARY = $00000002;
   CMSG_SIGNER_INFO_PARAM = 6;
   CERT_NAME_SIMPLE_DISPLAY_TYPE = 4;
-  CERT_FIND_SUBJECT_CERT = 655360;
+  CERT_FIND_SUBJECT_CERT = 720896; // CERT_COMPARE_SUBJECT_CERT (11) shl CERT_COMPARE_SHIFT (16) = $000B0000
   X509_ASN_ENCODING = $00000001;
   PKCS_7_ASN_ENCODING = $00010000;
 
@@ -30,6 +30,12 @@ type
   end;
   CRYPT_INTEGER_BLOB = CRYPT_DATA_BLOB;
   CERT_NAME_BLOB = CRYPT_DATA_BLOB;
+
+  CRYPT_BIT_BLOB = record
+    cbData: DWORD;
+    pbData: PByte;
+    cUnusedBits: DWORD;
+  end;
 
   PCMSG_SIGNER_INFO = ^CMSG_SIGNER_INFO;
   CMSG_SIGNER_INFO = record
@@ -71,32 +77,32 @@ type
         pszObjId: PAnsiChar;
         Parameters: CRYPT_DATA_BLOB;
       end;
-      PublicKey: CRYPT_DATA_BLOB;
+      PublicKey: CRYPT_BIT_BLOB;
     end;
-    IssuerUniqueId: CRYPT_DATA_BLOB;
-    SubjectUniqueId: CRYPT_DATA_BLOB;
+    IssuerUniqueId: CRYPT_BIT_BLOB;
+    SubjectUniqueId: CRYPT_BIT_BLOB;
     cExtension: DWORD;
     rgExtension: Pointer;
   end;
   PCERT_INFO = ^CERT_INFO;
 
-function CryptQueryObject(dwObjectType: DWORD; pvObject: Pointer; dwExpectedContentTypeFlags: DWORD; dwExpectedFormatTypeFlags: DWORD;
-  dwFlags: DWORD; pdwMsgAndCertEncodingType: PDWORD; pdwContentType: PDWORD; pdwFormatType: PDWORD;
-  phCertStore: Pointer; phMsg: Pointer; ppvContext: Pointer): BOOL; stdcall; external 'Crypt32.dll';
+  function CryptQueryObject(dwObjectType: DWORD; pvObject: Pointer; dwExpectedContentTypeFlags: DWORD; dwExpectedFormatTypeFlags: DWORD;
+    dwFlags: DWORD; pdwMsgAndCertEncodingType: PDWORD; pdwContentType: PDWORD; pdwFormatType: PDWORD;
+    phCertStore: Pointer; phMsg: Pointer; ppvContext: Pointer): BOOL; stdcall; external 'Crypt32.dll';
 
-function CertCloseStore(hCertStore: HCERTSTORE; dwFlags: DWORD): BOOL; stdcall; external 'Crypt32.dll';
+  function CertCloseStore(hCertStore: HCERTSTORE; dwFlags: DWORD): BOOL; stdcall; external 'Crypt32.dll';
 
-function CryptMsgClose(hCryptMsg: HCRYPTMSG): BOOL; stdcall; external 'Crypt32.dll';
+  function CryptMsgClose(hCryptMsg: HCRYPTMSG): BOOL; stdcall; external 'Crypt32.dll';
 
-function CryptMsgGetParam(hCryptMsg: HCRYPTMSG; dwParamType: DWORD; dwIndex: DWORD; pvData: Pointer; pcbData: PDWORD): BOOL; stdcall; external 'Crypt32.dll';
+  function CryptMsgGetParam(hCryptMsg: HCRYPTMSG; dwParamType: DWORD; dwIndex: DWORD; pvData: Pointer; pcbData: PDWORD): BOOL; stdcall; external 'Crypt32.dll';
 
-function CertFindCertificateInStore(hCertStore: HCERTSTORE; dwCertEncodingType: DWORD; dwFindFlags: DWORD; dwFindType: DWORD;
-  pvFindPara: Pointer; pPrevCertContext: PCCERT_CONTEXT): PCCERT_CONTEXT; stdcall; external 'Crypt32.dll';
+  function CertFindCertificateInStore(hCertStore: HCERTSTORE; dwCertEncodingType: DWORD; dwFindFlags: DWORD; dwFindType: DWORD;
+    pvFindPara: Pointer; pPrevCertContext: PCCERT_CONTEXT): PCCERT_CONTEXT; stdcall; external 'Crypt32.dll';
 
-function CertFreeCertificateContext(pCertContext: PCCERT_CONTEXT): BOOL; stdcall; external 'Crypt32.dll';
+  function CertFreeCertificateContext(pCertContext: PCCERT_CONTEXT): BOOL; stdcall; external 'Crypt32.dll';
 
-function CertGetNameString(pCertContext: PCCERT_CONTEXT; dwType: DWORD; dwFlags: DWORD; pvTypePara: Pointer; pszNameString: PChar;
-  cchNameString: DWORD): DWORD; stdcall; external 'Crypt32.dll' name 'CertGetNameStringW';
+  function CertGetNameString(pCertContext: PCCERT_CONTEXT; dwType: DWORD; dwFlags: DWORD; pvTypePara: Pointer; pszNameString: PChar;
+    cchNameString: DWORD): DWORD; stdcall; external 'Crypt32.dll' name 'CertGetNameStringW';
 
 
 implementation
