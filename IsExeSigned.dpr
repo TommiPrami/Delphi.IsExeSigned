@@ -31,7 +31,7 @@ begin
 
   if not Result and AParamIsMandatory then
   begin
-    Writeln('Parameter ' + ASwitchName.QuotedString('"') + ' not found or don''t have value');
+    Writeln('Parameter ' + ASwitchName.QuotedString('"') + ' not found or has no value');
     ExitCode := EXIT_CODE_PARAM_NOT_FOUND;
   end;
 end;
@@ -56,7 +56,7 @@ begin
 
     if not FileExists(LFileName) then
     begin
-      SetParamValueError(PARAM_FILE_NAME, 'file does not exists');
+      SetParamValueError(PARAM_FILE_NAME, 'file does not exist');
       Exit;
     end;
 
