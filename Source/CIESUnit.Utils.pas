@@ -4,6 +4,7 @@ interface
 
   function IsExeSigned(const AExeFileName: string): Boolean;
   function GetSignerName(const AExeFileName: string): string;
+  function HasWildcard(const FileName: string): Boolean;
 
 implementation
 
@@ -105,6 +106,22 @@ begin
     if Assigned(LMsg) then
       CryptMsgClose(LMsg);
   end;
+end;
+
+function HasWildcard(const FileName: string): Boolean;
+var
+  LWildcardSet: TSysCharSet;
+  LIndex: Integer;
+begin
+  LWildcardSet :=['*', '?', '[', ']', '#', '"', '!', '|'];
+
+  HasWildcard := False;
+  for LIndex := 1 to Length(FileName) do
+    if CharInSet(FileName[LIndex], LWildcardSet) then
+    begin
+      HasWildcard := True;
+      Exit;
+    end;
 end;
 
 

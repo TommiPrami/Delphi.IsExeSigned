@@ -1,0 +1,15 @@
+﻿unit CIESUnit.Consts;
+
+interface
+
+const
+  EXIT_CODE_NOT_SIGNED = 1;
+  EXIT_CODE_PARAM_NOT_FOUND = 2;
+  EXIT_CODE_PARAM_VALUE_ERROR = 3;
+  EXIT_CODE_EXCEPTION = 4;
+
+  PARAM_FILE_NAME = 'FileName';
+
+implementation
+
+end.

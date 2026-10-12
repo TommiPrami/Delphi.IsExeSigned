@@ -3,7 +3,24 @@
 interface
 
 uses
-  Winapi.Windows;
+  Winapi.Windows, System.Classes, Delphi.CommandLineParser, CIESUnit.Consts;
+
+type
+  TCommandLineParameters = class(TObject)
+  strict private
+    FFileName: string;
+    FErrorIfNotSigned: Boolean;
+    FRecurseSubDirs: Boolean;
+  public
+    [CLPLongName('FileName'), CLPDescription('Filename', '<path\[filename/*.dll;File##Util*.exe]>'), CLPDefault(''), CLPRequired]
+    property FileName: string read FFileName write FFileName;
+
+    [CLPLongName('ErrorIfNotSigned'), CLPDescription('Return exit code [1] if exe/dll not signed', '<Boolean>'), CLPDefault('True')]
+    property ErrorIfNotSigned: Boolean read FErrorIfNotSigned write FErrorIfNotSigned;
+
+    [CLPLongName('RecurseSubDirs'), CLPDescription('Recurse sub dirs if filename has search mattern', '<Boolean>'), CLPDefault('True')]
+    property RecurseSubDirs: Boolean read FRecurseSubDirs write FRecurseSubDirs;
+  end;
 
 {
   Types, Consts and WinApi declarations.

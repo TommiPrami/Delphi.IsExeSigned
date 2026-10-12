@@ -12,71 +12,88 @@
 {$R *.res}
 
 uses
+  System.Classes,
+  System.IOUtils,
   System.SysUtils,
   System.StrUtils,
+  Delphi.CommandLineParser in 'Source\3rdParty\Delphi.CommandLineParser\Delphi.CommandLineParser.pas',
+  Delphi.WildCardMatcher in 'Source\3rdParty\Delphi.WildCardMatcher\Source\Delphi.WildCardMatcher.pas',
+  CIESUnit.Consts in 'Source\CIESUnit.Consts.pas',
+  CIESUnit.Commandline in 'CIESUnit.Commandline.pas',
   CIESUnit.Types in 'Source\CIESUnit.Types.pas',
   CIESUnit.Utils in 'Source\CIESUnit.Utils.pas';
 
-const
-  EXIT_CODE_NOT_SIGNED = 1;
-  EXIT_CODE_PARAM_NOT_FOUND = 2;
-  EXIT_CODE_PARAM_VALUE_ERROR = 3;
-  EXIT_CODE_EXCEPTION = 4;
 
-function GetCmdLineSwitch(const ASwitchName: string; var ASwitchValue: string; const AParamIsMandatory: Boolean = True): Boolean;
+function GetFiles(const AFileNamePattern: string; const ARecurseSubDirs: Boolean): TArray<string>;
 begin
-  Result := FindCmdLineSwitch(ASwitchName, ASwitchValue);
-
-  Result := Result and not ASwitchValue.IsEmpty;
-
-  if not Result and AParamIsMandatory then
+  if HasWildcard(AFileNamePattern) then
   begin
-    Writeln('Parameter ' + ASwitchName.QuotedString('"') + ' not found or has no value');
-    ExitCode := EXIT_CODE_PARAM_NOT_FOUND;
-  end;
+    var LPath := ExtractFilePath(AFileNamePattern);
+    var LFilterString := ExtractFileName(AFileNamePattern);
+
+
+    var LAllFiles := TDirectory.GetFiles(LPath, '*',
+      if ARecurseSubDirs then TSearchOption.soAllDirectories else TSearchOption.soTopDirectoryOnly);
+
+    var LFilter := TWildCardFilter.Create(LFilterString.Split([';']), [], [wcoCaseSensitive]);
+
+    Result := LFilter.Filter(LAllFiles);
+  end
+  else
+    Result := [AFileNamePattern];
 end;
 
 procedure SetParamValueError(const AParamName, AErrorSuffix: string);
 begin
   Writeln('Error in Parameter ' + AParamName.QuotedString('"') + ' - ' + AErrorSuffix);
+
   ExitCode := EXIT_CODE_PARAM_VALUE_ERROR;
 end;
 
-const
-  PARAM_FILE_NAME = 'FileName';
-  PARAM_ERROR_IF_NOT_SIGNED = 'ErrorIfNotSigned';
 begin
   try
-    var LFileName: string;
-    if not GetCmdLineSwitch(PARAM_FILE_NAME, LFileName) then
-      Exit;
-
-    var LErrorIfNotSignedStr: string;
-    GetCmdLineSwitch(PARAM_ERROR_IF_NOT_SIGNED, LErrorIfNotSignedStr, False);
-
-    if not FileExists(LFileName) then
-    begin
-      SetParamValueError(PARAM_FILE_NAME, 'file does not exist');
-      Exit;
-    end;
-
-    var LErrorIfNotSigned: Boolean := False;
-    if not TryStrToBool(LErrorIfNotSignedStr, LErrorIfNotSigned) then
-      LErrorIfNotSigned := False;
-
-    var LExeIsSigned := CIESUnit.Utils.IsExeSigned(LFileName);
-
-    if LExeIsSigned then
-      Writeln('Exe is Signed by ' + GetSignerName(LFileName).QuotedString('"'))
-    else
-    begin
-      Writeln('Exe is NOT Signed.');
-
-      if LErrorIfNotSigned then
-      begin
-        ExitCode := EXIT_CODE_NOT_SIGNED;
+    var LCommandLine := TCommandLineParameters.Create;
+    try
+      if not ParseCommandLine(LCommandLine) then
         Exit;
+
+      var LFiles := GetFiles(LCommandLine.FileName, LCommandLine.RecurseSubDirs);
+      var LFilesCount := Length(LFiles);
+      var LUnsignedFiles := 0;
+      var LMultipleFiles := LFilesCount > 1;
+      var LLineIndent := if LMultipleFiles then '  ' else '';
+
+      if LMultipleFiles then
+        Writeln(LFilesCount.ToString + ' files found.');
+
+      for var LCurrentFile in LFiles do
+      begin
+        if not FileExists(LCurrentFile) then
+        begin
+          SetParamValueError(PARAM_FILE_NAME, 'file does not exist');
+          Exit;
+        end;
+
+        var LExeIsSigned := CIESUnit.Utils.IsExeSigned(LCurrentFile);
+
+        if LExeIsSigned then
+          Writeln(LLineIndent + '- ' + LCurrentFile.QuotedString('"') +  ' - is Signed by ' + GetSignerName(LCurrentFile).QuotedString('"'))
+        else
+        begin
+          Writeln(LLineIndent + '* ' + LCurrentFile.QuotedString('"') +  ' - is NOT Signed');
+
+          Inc(LUnsignedFiles);
+        end;
       end;
+
+      if LMultipleFiles then
+        Writeln(Length(LFiles).ToString + 'File(s) checked, ' + LUnsignedFiles.ToString + ' of them unsigned.');
+
+      if LUnsignedFiles > 0 then
+        if LCommandLine.ErrorIfNotSigned then
+          ExitCode := EXIT_CODE_NOT_SIGNED;
+    finally
+      LCommandLine.Free;
     end;
   except
     on E: Exception do
@@ -85,5 +102,10 @@ begin
       ExitCode := EXIT_CODE_EXCEPTION;
     end;
   end;
+
+{$IF DEFINED(DEBUG)}
+  WriteLn('Press [enter} to continue');
+  ReadLn;
+{$ENDIF}
 end.
 

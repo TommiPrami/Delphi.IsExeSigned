@@ -93,7 +93,7 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1_Win32)'!=''">
         <DCC_RemoteDebug>false</DCC_RemoteDebug>
-        <Debugger_RunParams>-filename:&quot;C:\Program Files (x86)\Windows Defender\MpCmdRun.exe&quot;</Debugger_RunParams>
+        <Debugger_RunParams>-filename:&quot;C:\git_st\Delphi\InnoSetup\Bin\*.dll;*.exe&quot;</Debugger_RunParams>
         <Manifest_File>(None)</Manifest_File>
         <AppDPIAwarenessMode>none</AppDPIAwarenessMode>
         <VerInfo_Release>0</VerInfo_Release>
@@ -117,6 +117,10 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
+        <DCCReference Include="Source\3rdParty\Delphi.CommandLineParser\Delphi.CommandLineParser.pas"/>
+        <DCCReference Include="Source\3rdParty\Delphi.WildCardMatcher\Source\Delphi.WildCardMatcher.pas"/>
+        <DCCReference Include="Source\CIESUnit.Consts.pas"/>
+        <DCCReference Include="CIESUnit.Commandline.pas"/>
         <DCCReference Include="Source\CIESUnit.Types.pas"/>
         <DCCReference Include="Source\CIESUnit.Utils.pas"/>
         <BuildConfiguration Include="Base">
@@ -161,6 +165,12 @@
                     </Platform>
                 </DeployFile>
                 <DeployFile LocalName="Win32\Debug\IsExeSigned.exe" Configuration="Debug" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>IsExeSigned.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Win32\Release\IsExeSigned.exe" Configuration="Release" Class="ProjectOutput">
                     <Platform Name="Win32">
                         <RemoteName>IsExeSigned.exe</RemoteName>
                         <Overwrite>true</Overwrite>
