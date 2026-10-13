@@ -11,15 +11,23 @@ type
     FFileName: string;
     FErrorIfNotSigned: Boolean;
     FRecurseSubDirs: Boolean;
+    FCheckIsSignatureValid: Boolean;
+    FCheckSignatureSignerFilter: string;
   public
-    [CLPLongName('FileName'), CLPDescription('Filename', '<path\[filename/*.dll;File##Util*.exe]>'), CLPDefault(''), CLPRequired]
+    [CLPLongName('FileName'), CLPDescription('Filename', '<path\[filename/*.dll;File<##>Util*.exe]>'), CLPDefault(''), CLPRequired]
     property FileName: string read FFileName write FFileName;
 
     [CLPLongName('ErrorIfNotSigned'), CLPDescription('Return exit code [1] if exe/dll not signed', '<Boolean>'), CLPDefault('True')]
     property ErrorIfNotSigned: Boolean read FErrorIfNotSigned write FErrorIfNotSigned;
 
-    [CLPLongName('RecurseSubDirs'), CLPDescription('Recurse sub dirs if filename has search mattern', '<Boolean>'), CLPDefault('True')]
+    [CLPLongName('RecurseSubDirs'), CLPDescription('Recurse sub dirs if filename has search pattern', '<Boolean>'), CLPDefault('True')]
     property RecurseSubDirs: Boolean read FRecurseSubDirs write FRecurseSubDirs;
+
+    [CLPLongName('CheckIsSignatureValid'), CLPDescription('Return exit code [5] if signature is not valid', '<Boolean>'), CLPDefault('False')]
+    property CheckIsSignatureValid: Boolean read FCheckIsSignatureValid write FCheckIsSignatureValid;
+
+    [CLPLongName('CheckSignatureSignerFilter'), CLPDescription('Check signature validity only for matching signers, implies CheckIsSignatureValid', '<*Signer*;Signer*>'), CLPDefault('')]
+    property CheckSignatureSignerFilter: string read FCheckSignatureSignerFilter write FCheckSignatureSignerFilter;
   end;
 
 {

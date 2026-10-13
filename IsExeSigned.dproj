@@ -120,7 +120,7 @@
         <DCCReference Include="Source\3rdParty\Delphi.CommandLineParser\Delphi.CommandLineParser.pas"/>
         <DCCReference Include="Source\3rdParty\Delphi.WildCardMatcher\Source\Delphi.WildCardMatcher.pas"/>
         <DCCReference Include="Source\CIESUnit.Consts.pas"/>
-        <DCCReference Include="CIESUnit.Commandline.pas"/>
+        <DCCReference Include="Source\CIESUnit.Commandline.pas"/>
         <DCCReference Include="Source\CIESUnit.Types.pas"/>
         <DCCReference Include="Source\CIESUnit.Utils.pas"/>
         <BuildConfiguration Include="Base">

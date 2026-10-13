@@ -12,43 +12,13 @@
 {$R *.res}
 
 uses
-  System.Classes,
-  System.IOUtils,
   System.SysUtils,
-  System.StrUtils,
   Delphi.CommandLineParser in 'Source\3rdParty\Delphi.CommandLineParser\Delphi.CommandLineParser.pas',
   Delphi.WildCardMatcher in 'Source\3rdParty\Delphi.WildCardMatcher\Source\Delphi.WildCardMatcher.pas',
   CIESUnit.Consts in 'Source\CIESUnit.Consts.pas',
-  CIESUnit.Commandline in 'CIESUnit.Commandline.pas',
+  CIESUnit.Commandline in 'Source\CIESUnit.Commandline.pas',
   CIESUnit.Types in 'Source\CIESUnit.Types.pas',
   CIESUnit.Utils in 'Source\CIESUnit.Utils.pas';
-
-
-function GetFiles(const AFileNamePattern: string; const ARecurseSubDirs: Boolean): TArray<string>;
-begin
-  if HasWildcard(AFileNamePattern) then
-  begin
-    var LPath := ExtractFilePath(AFileNamePattern);
-    var LFilterString := ExtractFileName(AFileNamePattern);
-
-
-    var LAllFiles := TDirectory.GetFiles(LPath, '*',
-      if ARecurseSubDirs then TSearchOption.soAllDirectories else TSearchOption.soTopDirectoryOnly);
-
-    var LFilter := TWildCardFilter.Create(LFilterString.Split([';']), [], [wcoCaseSensitive]);
-
-    Result := LFilter.Filter(LAllFiles);
-  end
-  else
-    Result := [AFileNamePattern];
-end;
-
-procedure SetParamValueError(const AParamName, AErrorSuffix: string);
-begin
-  Writeln('Error in Parameter ' + AParamName.QuotedString('"') + ' - ' + AErrorSuffix);
-
-  ExitCode := EXIT_CODE_PARAM_VALUE_ERROR;
-end;
 
 begin
   try
@@ -60,24 +30,47 @@ begin
       var LFiles := GetFiles(LCommandLine.FileName, LCommandLine.RecurseSubDirs);
       var LFilesCount := Length(LFiles);
       var LUnsignedFiles := 0;
+
+      if LFilesCount = 0 then
+      begin
+        SetParamValueError(PARAM_FILE_NAME, 'no files match the pattern ' + LCommandLine.FileName.QuotedString('"'));
+        Exit;
+      end;
+
       var LMultipleFiles := LFilesCount > 1;
       var LLineIndent := if LMultipleFiles then '  ' else '';
+      var LInvalidSignatures := 0;
+      var LCheckSignatures := LCommandLine.CheckIsSignatureValid or not LCommandLine.CheckSignatureSignerFilter.IsEmpty;
+      // No patterns, accepts all signers
+      var LSignerFilter := TWildCardFilter.Create(LCommandLine.CheckSignatureSignerFilter.Split([';'], TStringSplitOptions.ExcludeEmpty), [], []);
 
       if LMultipleFiles then
         Writeln(LFilesCount.ToString + ' files found.');
 
       for var LCurrentFile in LFiles do
       begin
-        if not FileExists(LCurrentFile) then
+        var LSignerName: string;
+
+        if CIESUnit.Utils.IsExeSigned(LCurrentFile, LSignerName) then
         begin
-          SetParamValueError(PARAM_FILE_NAME, 'file does not exist');
-          Exit;
-        end;
+          var LSignedLine := LCurrentFile.QuotedString('"') +  ' - is Signed by ' + LSignerName.QuotedString('"');
 
-        var LExeIsSigned := CIESUnit.Utils.IsExeSigned(LCurrentFile);
+          if LCheckSignatures and LSignerFilter.Accepts(LSignerName) then
+          begin
+            var LErrorMessage: string;
 
-        if LExeIsSigned then
-          Writeln(LLineIndent + '- ' + LCurrentFile.QuotedString('"') +  ' - is Signed by ' + GetSignerName(LCurrentFile).QuotedString('"'))
+            if IsSignatureValid(LCurrentFile, LErrorMessage) then
+              Writeln(LLineIndent + '- ' + LSignedLine + ' - signature is valid')
+            else
+            begin
+              Writeln(LLineIndent + '! ' + LSignedLine + ' - signature is NOT valid: ' + LErrorMessage);
+
+              Inc(LInvalidSignatures);
+            end;
+          end
+          else
+            Writeln(LLineIndent + '- ' + LSignedLine);
+        end
         else
         begin
           Writeln(LLineIndent + '* ' + LCurrentFile.QuotedString('"') +  ' - is NOT Signed');
@@ -87,11 +80,19 @@ begin
       end;
 
       if LMultipleFiles then
-        Writeln(Length(LFiles).ToString + 'File(s) checked, ' + LUnsignedFiles.ToString + ' of them unsigned.');
+      begin
+        var LSummary := LFilesCount.ToString + ' file(s) checked, ' + LUnsignedFiles.ToString + ' of them unsigned';
 
-      if LUnsignedFiles > 0 then
-        if LCommandLine.ErrorIfNotSigned then
-          ExitCode := EXIT_CODE_NOT_SIGNED;
+        if LCheckSignatures then
+          LSummary := LSummary + ', ' + LInvalidSignatures.ToString + ' with invalid signature';
+
+        Writeln(LSummary + '.');
+      end;
+
+      if (LUnsignedFiles > 0) and LCommandLine.ErrorIfNotSigned then
+        ExitCode := EXIT_CODE_NOT_SIGNED
+      else if LInvalidSignatures > 0 then
+        ExitCode := EXIT_CODE_SIGNATURE_NOT_VALID;
     finally
       LCommandLine.Free;
     end;
@@ -104,7 +105,7 @@ begin
   end;
 
 {$IF DEFINED(DEBUG)}
-  WriteLn('Press [enter} to continue');
+  WriteLn('Press [Enter] to continue');
   ReadLn;
 {$ENDIF}
 end.
