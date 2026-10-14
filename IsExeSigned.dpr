@@ -43,6 +43,11 @@ begin
       var LCheckSignatures := LCommandLine.CheckIsSignatureValid or not LCommandLine.CheckSignatureSignerFilter.IsEmpty;
       // No patterns, accepts all signers
       var LSignerFilter := TWildCardFilter.Create(LCommandLine.CheckSignatureSignerFilter.Split([';'], TStringSplitOptions.ExcludeEmpty), [], []);
+      var LSignedFiles := 0;
+      var LSignTimeouts := 0;
+      var LSignFiles := not LCommandLine.SignFileCommandLine.IsEmpty;
+      // Matched against the full path, no patterns accepts all files
+      var LSignFileFilter := TWildCardFilter.Create(LCommandLine.SignFileWildCard.Split([';'], TStringSplitOptions.ExcludeEmpty), [], []);
 
       if LMultipleFiles then
         Writeln(LFilesCount.ToString + ' files found.');
@@ -50,12 +55,49 @@ begin
       for var LCurrentFile in LFiles do
       begin
         var LSignerName: string;
+        var LIsSigned := CIESUnit.Utils.IsExeSigned(LCurrentFile, LSignerName);
+        var LSignedNow := False;
 
-        if CIESUnit.Utils.IsExeSigned(LCurrentFile, LSignerName) then
+        if not LIsSigned and LSignFiles and LSignFileFilter.Accepts(LCurrentFile) then
         begin
-          var LSignedLine := LCurrentFile.QuotedString('"') +  ' - is Signed by ' + LSignerName.QuotedString('"');
+          // Written and flushed before running the command, so sign tool output comes after this line, also
+          // when the output is redirected (buffered)
+          Writeln(LLineIndent + '> ' + LCurrentFile.QuotedString('"') +  ' - is NOT Signed, signing it');
+          Flush(Output);
 
-          if LCheckSignatures and LSignerFilter.Accepts(LSignerName) then
+          var LSignExitCode: Cardinal;
+
+          if not RunSignFileCommand(LCommandLine.SignFileCommandLine, LCurrentFile, LCommandLine.SignTimeout, LSignExitCode) then
+          begin
+            Writeln(LLineIndent + '  ERROR: Sign command did not finish in ' + LCommandLine.SignTimeout.ToString + ' seconds, it was stopped');
+
+            Inc(LSignTimeouts);
+
+            if not LCommandLine.ContinueOnSignTimeout then
+            begin
+              Writeln('Stopped, ContinueOnSignTimeout is False');
+
+              ExitCode := EXIT_CODE_SIGN_TIMEOUT;
+              Exit;
+            end;
+          end
+          else if LSignExitCode <> 0 then
+            Writeln(LLineIndent + '  Sign command returned exit code ' + LSignExitCode.ToString);
+
+          LIsSigned := CIESUnit.Utils.IsExeSigned(LCurrentFile, LSignerName);
+          LSignedNow := LIsSigned;
+
+          if LSignedNow then
+            Inc(LSignedFiles);
+        end;
+
+        if LIsSigned then
+        begin
+          var LSignedLine := LCurrentFile.QuotedString('"') + (if LSignedNow then ' - is Signed now by ' else ' - is Signed by ')
+            + LSignerName.QuotedString('"');
+
+          // Just signed files are always checked, to make sure the signing really worked
+          if LSignedNow or (LCheckSignatures and LSignerFilter.Accepts(LSignerName)) then
           begin
             var LErrorMessage: string;
 
@@ -83,7 +125,13 @@ begin
       begin
         var LSummary := LFilesCount.ToString + ' file(s) checked, ' + LUnsignedFiles.ToString + ' of them unsigned';
 
-        if LCheckSignatures then
+        if LSignFiles then
+          LSummary := LSummary + ', ' + LSignedFiles.ToString + ' signed now';
+
+        if LSignTimeouts > 0 then
+          LSummary := LSummary + ', ' + LSignTimeouts.ToString + ' sign command timeout(s)';
+
+        if LCheckSignatures or LSignFiles then
           LSummary := LSummary + ', ' + LInvalidSignatures.ToString + ' with invalid signature';
 
         Writeln(LSummary + '.');

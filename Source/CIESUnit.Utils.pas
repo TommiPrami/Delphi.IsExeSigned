@@ -5,12 +5,14 @@ interface
   function IsExeSigned(const AExeFileName: string; out ASignerName: string): Boolean;
   function IsSignatureValid(const AExeFileName: string; out AErrorMessage: string): Boolean;
   function GetFiles(const AFileNamePattern: string; const ARecurseSubDirs: Boolean): TArray<string>;
+  // Returns False if the command did not finish in ATimeoutSeconds, it is then stopped
+  function RunSignFileCommand(const ACommandLine, AFileName: string; const ATimeoutSeconds: Integer; out AExitCode: Cardinal): Boolean;
 
 
 implementation
 
 uses
-  Winapi.Windows, System.IOUtils, System.SysUtils, CIESUnit.Types, Delphi.WildCardMatcher;
+  Winapi.Windows, System.IOUtils, System.SysUtils, CIESUnit.Consts, CIESUnit.Types, Delphi.WildCardMatcher;
 
 function GetSignerName(const AStore: HCERTSTORE; const AMsg: HCRYPTMSG): string;
 begin
@@ -145,6 +147,78 @@ begin
   end
   else
     Result := [AFileNamePattern];
+end;
+
+function RunSignFileCommand(const ACommandLine, AFileName: string; const ATimeoutSeconds: Integer; out AExitCode: Cardinal): Boolean;
+var
+  LProcessInfo: TProcessInformation;
+  LStartupInfo: TStartupInfo;
+begin
+  // File name is quoted exactly once, also when the placeholder is already quoted in the command line
+  var LCommand := StringReplace(ACommandLine, '"' + SIGN_FILE_NAME_PLACEHOLDER + '"', SIGN_FILE_NAME_PLACEHOLDER, [rfReplaceAll, rfIgnoreCase]);
+  LCommand := StringReplace(LCommand, SIGN_FILE_NAME_PLACEHOLDER, AFileName.QuotedString('"'), [rfReplaceAll, rfIgnoreCase]);
+
+  var LComSpec := GetEnvironmentVariable('ComSpec');
+
+  if LComSpec.IsEmpty then
+    LComSpec := 'cmd.exe';
+
+  // Run through cmd.exe so batch files work too, /S strips only the outer quotes and keeps the command as is
+  var LProcessCommandLine := LComSpec + ' /S /C "' + LCommand + '"';
+  // CreateProcessW can modify the command line buffer
+  UniqueString(LProcessCommandLine);
+
+  FillChar(LStartupInfo, SizeOf(LStartupInfo), 0);
+  LStartupInfo.cb := SizeOf(LStartupInfo);
+
+  Result := False;
+  AExitCode := 0;
+
+  // Job object, so on timeout the whole process tree is stopped, not just cmd.exe (the sign tool is its child)
+  var LJob := CreateJobObject(nil, nil);
+
+  if LJob = 0 then
+    RaiseLastOSError;
+
+  try
+    if not CreateProcess(nil, PChar(LProcessCommandLine), nil, nil, False, CREATE_SUSPENDED, nil, nil, LStartupInfo, LProcessInfo) then
+      RaiseLastOSError;
+
+    try
+      // Assigned before the process runs, so its child processes are in the job too. If this fails (Windows 7, already
+      // in a job, no nested jobs), timeout stops only cmd.exe
+      var LInJob := AssignProcessToJobObject(LJob, LProcessInfo.hProcess);
+
+      ResumeThread(LProcessInfo.hThread);
+
+      case WaitForSingleObject(LProcessInfo.hProcess, Cardinal(ATimeoutSeconds) * 1000) of
+        WAIT_OBJECT_0:
+          begin
+            if not GetExitCodeProcess(LProcessInfo.hProcess, AExitCode) then
+              RaiseLastOSError;
+
+            Result := True;
+          end;
+        WAIT_TIMEOUT:
+          begin
+            if LInJob then
+              TerminateJobObject(LJob, 1)
+            else
+              TerminateProcess(LProcessInfo.hProcess, 1);
+
+            // Give the termination a moment, so the file is not locked anymore when it is checked
+            WaitForSingleObject(LProcessInfo.hProcess, 5000);
+          end;
+      else
+        RaiseLastOSError;
+      end;
+    finally
+      CloseHandle(LProcessInfo.hThread);
+      CloseHandle(LProcessInfo.hProcess);
+    end;
+  finally
+    CloseHandle(LJob);
+  end;
 end;
 
 

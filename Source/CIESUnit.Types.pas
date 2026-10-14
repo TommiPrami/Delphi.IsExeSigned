@@ -13,6 +13,10 @@ type
     FRecurseSubDirs: Boolean;
     FCheckIsSignatureValid: Boolean;
     FCheckSignatureSignerFilter: string;
+    FSignFileCommandLine: string;
+    FSignFileWildCard: string;
+    FSignTimeout: Integer;
+    FContinueOnSignTimeout: Boolean;
   public
     [CLPLongName('FileName'), CLPDescription('Filename', '<path\[filename/*.dll;File<##>Util*.exe]>'), CLPDefault(''), CLPRequired]
     property FileName: string read FFileName write FFileName;
@@ -28,6 +32,18 @@ type
 
     [CLPLongName('CheckSignatureSignerFilter'), CLPDescription('Check signature validity only for matching signers, implies CheckIsSignatureValid', '<*Signer*;Signer*>'), CLPDefault('')]
     property CheckSignatureSignerFilter: string read FCheckSignatureSignerFilter write FCheckSignatureSignerFilter;
+
+    [CLPLongName('SignFileCommandLine'), CLPDescription('Command to sign unsigned files with, %filename% is replaced with the file name. Return exit code [6] if %filename% is missing', '<C:\SignFile.bat %filename%>'), CLPDefault('')]
+    property SignFileCommandLine: string read FSignFileCommandLine write FSignFileCommandLine;
+
+    [CLPLongName('SignFileWildCard'), CLPDescription('Sign only unsigned files whose full path matches, all unsigned files if not given', '<*\Dir\*.dll;*\Other\*>'), CLPDefault('')]
+    property SignFileWildCard: string read FSignFileWildCard write FSignFileWildCard;
+
+    [CLPLongName('SignTimeout'), CLPDescription('Seconds to wait for the sign command, then it is stopped', '<1..86400>'), CLPDefault('60')]
+    property SignTimeout: Integer read FSignTimeout write FSignTimeout;
+
+    [CLPLongName('ContinueOnSignTimeout'), CLPDescription('Continue with the next file when the sign command times out, otherwise stop and return exit code [7]', '<Boolean>'), CLPDefault('False')]
+    property ContinueOnSignTimeout: Boolean read FContinueOnSignTimeout write FContinueOnSignTimeout;
   end;
 
 {

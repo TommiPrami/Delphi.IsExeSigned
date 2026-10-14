@@ -3,15 +3,15 @@
 interface
 
 uses
-  Delphi.CommandLineParser, CIESUnit.Types;
+  Delphi.CommandLineParser, CIESUnit.Consts, CIESUnit.Types;
 
   function ParseCommandLine(const AParameters: TCommandLineParameters): Boolean;
-  procedure SetParamValueError(const AParamName, AErrorSuffix: string);
+  procedure SetParamValueError(const AParamName, AErrorSuffix: string; const AExitCode: Integer = EXIT_CODE_PARAM_VALUE_ERROR);
 
 implementation
 
 uses
-  System.SysUtils, Delphi.WildCardMatcher, CIESUnit.Consts;
+  System.StrUtils, System.SysUtils, Delphi.WildCardMatcher;
 
 function ParseCommandLine(const AParameters: TCommandLineParameters): Boolean;
 var
@@ -53,13 +53,36 @@ begin
 
     Result := False;
   end;
+
+  if not Result then
+    Exit;
+
+  if not AParameters.SignFileCommandLine.IsEmpty and not ContainsText(AParameters.SignFileCommandLine, SIGN_FILE_NAME_PLACEHOLDER) then
+  begin
+    SetParamValueError(PARAM_SIGN_FILE_COMMAND_LINE, SIGN_FILE_NAME_PLACEHOLDER + ' is missing from the command line',
+      EXIT_CODE_SIGN_COMMAND_NO_FILE_NAME);
+
+    Result := False;
+  end
+  else if AParameters.SignFileCommandLine.IsEmpty and not AParameters.SignFileWildCard.IsEmpty then
+  begin
+    SetParamValueError(PARAM_SIGN_FILE_WILD_CARD, 'can not be used without ' + PARAM_SIGN_FILE_COMMAND_LINE);
+
+    Result := False;
+  end
+  else if (AParameters.SignTimeout < 1) or (AParameters.SignTimeout > SIGN_TIMEOUT_MAX) then
+  begin
+    SetParamValueError(PARAM_SIGN_TIMEOUT, 'must be between 1 and ' + SIGN_TIMEOUT_MAX.ToString + ' seconds');
+
+    Result := False;
+  end;
 end;
 
-procedure SetParamValueError(const AParamName, AErrorSuffix: string);
+procedure SetParamValueError(const AParamName, AErrorSuffix: string; const AExitCode: Integer = EXIT_CODE_PARAM_VALUE_ERROR);
 begin
   Writeln('Error in Parameter ' + AParamName.QuotedString('"') + ' - ' + AErrorSuffix);
 
-  ExitCode := EXIT_CODE_PARAM_VALUE_ERROR;
+  ExitCode := AExitCode;
 end;
 
 end.

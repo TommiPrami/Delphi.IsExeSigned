@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{13B2A410-BB30-4566-B48B-F4B0D0A29EEC}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="UnitTests\IsExeSignedUnitTests.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="IsExeSigned.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="IsExeSignedUnitTests">
+        <MSBuild Projects="UnitTests\IsExeSignedUnitTests.dproj"/>
+    </Target>
+    <Target Name="IsExeSignedUnitTests:Clean">
+        <MSBuild Projects="UnitTests\IsExeSignedUnitTests.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="IsExeSignedUnitTests:Make">
+        <MSBuild Projects="UnitTests\IsExeSignedUnitTests.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="IsExeSigned">
+        <MSBuild Projects="IsExeSigned.dproj"/>
+    </Target>
+    <Target Name="IsExeSigned:Clean">
+        <MSBuild Projects="IsExeSigned.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="IsExeSigned:Make">
+        <MSBuild Projects="IsExeSigned.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="IsExeSignedUnitTests;IsExeSigned"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="IsExeSignedUnitTests:Clean;IsExeSigned:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="IsExeSignedUnitTests:Make;IsExeSigned:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

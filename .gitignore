@@ -64,8 +64,9 @@ __history/
 __recovery/
 *.~*
 
-# DUnitX test results, written by every test run
+# DUnitX test results, written by every test run and TestInsight settings
 dunitx-results.xml
+TestInsightSettings.ini
 
 # Castalia statistics file (since XE7 Castalia is distributed with Delphi)
 *.stat
@@ -73,3 +74,4 @@ dunitx-results.xml
 # Boss dependency manager vendor folder https://github.com/HashLoad/boss
 modules/
 *.dsv
+
