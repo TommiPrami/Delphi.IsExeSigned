@@ -17,7 +17,14 @@ type
     FSignFileWildCard: string;
     FSignTimeout: Integer;
     FContinueOnSignTimeout: Boolean;
+    FLogToFile: Boolean;
+    FLogFileName: string;
+    FAllowLogOverwrite: Boolean;
   public
+    // Full path of the NUnit XML log file to write, '' when no log is written: LogFileName if given, otherwise
+    // LOG_FILE_NAME_DEFAULT in the application folder if LogToFile is True
+    function GetLogFileName: string;
+
     [CLPLongName('FileName'), CLPDescription('Filename', '<path\[filename/*.dll;File<##>Util*.exe]>'), CLPDefault(''), CLPRequired]
     property FileName: string read FFileName write FFileName;
 
@@ -44,6 +51,15 @@ type
 
     [CLPLongName('ContinueOnSignTimeout'), CLPDescription('Continue with the next file when the sign command times out, otherwise stop and return exit code [7]', '<Boolean>'), CLPDefault('False')]
     property ContinueOnSignTimeout: Boolean read FContinueOnSignTimeout write FContinueOnSignTimeout;
+
+    [CLPLongName('LogToFile'), CLPDescription('Write NUnit XML log, to LogFileName or to IsExeSigned.xml in the application folder', '<Boolean>'), CLPDefault('False')]
+    property LogToFile: Boolean read FLogToFile write FLogToFile;
+
+    [CLPLongName('LogFileName'), CLPDescription('NUnit XML log file, implies LogToFile. The directory must exist', '<path\filename.xml>'), CLPDefault('')]
+    property LogFileName: string read FLogFileName write FLogFileName;
+
+    [CLPLongName('AllowLogOverwrite'), CLPDescription('Overwrite an existing log file, if False and the log file exists, return exit code [3]', '<Boolean>'), CLPDefault('True')]
+    property AllowLogOverwrite: Boolean read FAllowLogOverwrite write FAllowLogOverwrite;
   end;
 
 {
@@ -148,5 +164,19 @@ type
 
 implementation
 
+uses
+  System.SysUtils;
+
+{ TCommandLineParameters }
+
+function TCommandLineParameters.GetLogFileName: string;
+begin
+  if not FLogFileName.IsEmpty then
+    Result := ExpandFileName(FLogFileName)
+  else if FLogToFile then
+    Result := ExtractFilePath(ParamStr(0)) + LOG_FILE_NAME_DEFAULT
+  else
+    Result := '';
+end;
 
 end.

@@ -36,6 +36,9 @@ type
     destructor Destroy; override;
     // Adds a file under FilesDir, ARelativeName can have sub directories. Returns its full path.
     function Add(const ARelativeName: string; const AKind: TTestFileKind): string;
+    // Copy of IsExeSigned.exe in its own folder under Root, for tests that need the application folder (default log
+    // file). Returns its full path.
+    function CopyIsExeSigned: string;
     function CreateSignTool(const AKind: TSignToolKind): string;
     function HangMarker: string;
     function PathOf(const ARelativeName: string): string;
@@ -49,7 +52,8 @@ type
 // IsExeSigned.exe under test: the ISEXESIGNED_EXE environment variable, or the most recently built
 // <repository>\<Win32|Win64>\<Release|Debug>\IsExeSigned.exe
 function IsExeSignedExe: string;
-function RunIsExeSigned(const AArguments: array of string): TRunResult;
+function RunIsExeSigned(const AArguments: array of string): TRunResult; overload;
+function RunIsExeSigned(const AExeFileName: string; const AArguments: array of string): TRunResult; overload;
 // A Windows file with a valid embedded signature, used as the source of all signed test files
 function SignedSystemFile: string;
 
@@ -143,6 +147,11 @@ begin
 end;
 
 function RunIsExeSigned(const AArguments: array of string): TRunResult;
+begin
+  Result := RunIsExeSigned(IsExeSignedExe, AArguments);
+end;
+
+function RunIsExeSigned(const AExeFileName: string; const AArguments: array of string): TRunResult;
 var
   LExitCode: Cardinal;
   LProcessInfo: TProcessInformation;
@@ -177,7 +186,7 @@ begin
         LStartupInfo.hStdOutput := LOutput;
         LStartupInfo.hStdError := LOutput;
 
-        var LCommandLine := QuoteArgument(IsExeSignedExe);
+        var LCommandLine := QuoteArgument(AExeFileName);
 
         for var LArgument in AArguments do
           LCommandLine := LCommandLine + ' ' + QuoteArgument(LArgument);
@@ -293,6 +302,17 @@ begin
     tfkUnsigned:
       TFile.WriteAllText(Result, 'Not signed', TEncoding.ASCII);
   end;
+end;
+
+function TTestFiles.CopyIsExeSigned: string;
+begin
+  var LDirectory := TPath.Combine(FRoot, 'App');
+
+  ForceDirectories(LDirectory);
+
+  Result := TPath.Combine(LDirectory, 'IsExeSigned.exe');
+
+  TFile.Copy(IsExeSignedExe, Result, True);
 end;
 
 function TTestFiles.CreateSignTool(const AKind: TSignToolKind): string;

@@ -76,6 +76,36 @@ begin
 
     Result := False;
   end;
+
+  if not Result then
+    Exit;
+
+  // Checked before anything is done, rather than failing when the log is saved at the end
+  var LLogFileName := AParameters.GetLogFileName;
+
+  if LLogFileName.IsEmpty then
+    Exit;
+
+  var LLogDirectory := ExtractFileDir(LLogFileName);
+
+  if ExtractFileName(LLogFileName).IsEmpty then
+  begin
+    SetParamValueError(PARAM_LOG_FILE_NAME, 'file name is missing from ' + LLogFileName.QuotedString('"'));
+
+    Result := False;
+  end
+  else if not DirectoryExists(LLogDirectory) then
+  begin
+    SetParamValueError(PARAM_LOG_FILE_NAME, 'directory ' + LLogDirectory.QuotedString('"') + ' does not exist');
+
+    Result := False;
+  end
+  else if FileExists(LLogFileName) and not AParameters.AllowLogOverwrite then
+  begin
+    SetParamValueError(PARAM_LOG_FILE_NAME, 'file ' + LLogFileName.QuotedString('"') + ' exists and AllowLogOverwrite is False');
+
+    Result := False;
+  end;
 end;
 
 procedure SetParamValueError(const AParamName, AErrorSuffix: string; const AExitCode: Integer = EXIT_CODE_PARAM_VALUE_ERROR);

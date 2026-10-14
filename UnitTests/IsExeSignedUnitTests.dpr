@@ -22,9 +22,11 @@ uses
   CIESUnit.Utils in '..\Source\CIESUnit.Utils.pas',
   CIESUnit.Tests.Common in 'Tests\CIESUnit.Tests.Common.pas',
   CIESUnit.Utils.Tests in 'Tests\CIESUnit.Utils.Tests.pas',
+  CIESUnit.Types.Tests in 'Tests\CIESUnit.Types.Tests.pas',
   CIESUnit.Integration.Parameters.Tests in 'Tests\CIESUnit.Integration.Parameters.Tests.pas',
   CIESUnit.Integration.Check.Tests in 'Tests\CIESUnit.Integration.Check.Tests.pas',
-  CIESUnit.Integration.Signing.Tests in 'Tests\CIESUnit.Integration.Signing.Tests.pas';
+  CIESUnit.Integration.Signing.Tests in 'Tests\CIESUnit.Integration.Signing.Tests.pas',
+  CIESUnit.Integration.Log.Tests in 'Tests\CIESUnit.Integration.Log.Tests.pas';
 
 { keep comment here to protect the following conditional from being removed by the IDE when adding a unit }
 {$IF NOT DEFINED(TESTINSIGHT)}

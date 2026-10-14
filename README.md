@@ -11,6 +11,7 @@ IsExeSigned.exe -FileName:"<FILENAME|PATH\PATTERN>" [-ErrorIfNotSigned:<True|Fal
   [-CheckIsSignatureValid:<True|False>] [-CheckSignatureSignerFilter:"<PATTERN>"]
   [-SignFileCommandLine:"<COMMAND %filename%>"] [-SignFileWildCard:"<PATTERN>"]
   [-SignTimeout:<SECONDS>] [-ContinueOnSignTimeout:<True|False>]
+  [-LogToFile:<True|False>] [-LogFileName:"<FILENAME>"] [-AllowLogOverwrite:<True|False>]
 ```
 
 Examples:
@@ -90,6 +91,27 @@ Output, one line per file:
   - `False`: stop at the first sign command timeout → ExitCode = `7`  
   - `True`: continue with the next file; the timed out file counts as unsigned (unless the command signed it before it was stopped)  
 
+- **LogToFile**  
+  - Optional (`True` or `False`), default `False`  
+  - Writes an NUnit 3 XML log; without `LogFileName` to `IsExeSigned.xml` in the folder of `IsExeSigned.exe`  
+
+- **LogFileName**  
+  - Optional, the NUnit 3 XML log file; giving it writes the log, `LogToFile` is not needed  
+  - The directory must exist, the file does not have to; a relative name is relative to the current directory  
+
+- **AllowLogOverwrite**  
+  - Optional (`True` or `False`), default `True`  
+  - `False` and the log file exists → ExitCode = `3`, checked before anything else is done  
+
+The log has one test case per checked file, named by its full path:
+
+- passed: signed (and signature valid, when checked); the message tells the signer  
+- failed: signature not valid, or not signed with `ErrorIfNotSigned` `True`  
+- warning: not signed with `ErrorIfNotSigned` `False`  
+- error: sign command timeout that stopped the run, or no files match the pattern  
+
+The log is written also when the run stops early (sign command timeout); not when the command line itself is invalid.  
+
 ## Exit codes
 
 | Code | Meaning |
@@ -97,7 +119,7 @@ Output, one line per file:
 | `0` | All files signed (or `ErrorIfNotSigned` is `False`), and all checked signatures are valid |
 | `1` | At least one file is not signed and `ErrorIfNotSigned` is `True` (takes precedence over `5`) |
 | `2` | Invalid command line: `FileName` missing or a parameter value is invalid |
-| `3` | File not found, pattern without a directory, directory not found, no files match the pattern, `SignFileWildCard` without `SignFileCommandLine`, or `SignTimeout` out of range |
+| `3` | File not found, pattern without a directory, directory not found, no files match the pattern, `SignFileWildCard` without `SignFileCommandLine`, `SignTimeout` out of range, log file directory not found, or log file exists and `AllowLogOverwrite` is `False` |
 | `4` | Something unexpected happened (like an unhandled exception) |
 | `5` | At least one checked signature is not valid |
 | `6` | `SignFileCommandLine` does not contain `%filename%` |
