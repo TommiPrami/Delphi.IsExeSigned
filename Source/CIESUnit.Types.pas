@@ -27,10 +27,10 @@ type
 
     // The second long names are the names before 2026-10, kept so existing scripts keep working
 
-    [CLPLongName('Files'), CLPLongName('FileName'), CLPDescription('File, or directory and patterns separated by ";"', '<file|dir\pattern[;pattern]>'), CLPDefault(''), CLPRequired]
+    [CLPLongName('Files'),  CLPDescription('File, or directory and patterns separated by ";"', '<file|dir\pattern[;pattern]>'), CLPDefault(''), CLPRequired]
     property Files: string read FFiles write FFiles;
 
-    [CLPLongName('FailIfUnsigned'), CLPLongName('ErrorIfNotSigned'), CLPDescription('Return exit code [1] if a file is not signed', '<True|False>'), CLPDefault('True')]
+    [CLPLongName('FailIfUnsigned'), CLPDescription('Return exit code [1] if a file is not signed', '<True|False>'), CLPDefault('True')]
     property FailIfUnsigned: Boolean read FFailIfUnsigned write FFailIfUnsigned;
 
     [CLPLongName('Recursive'), CLPDescription('Search the sub directories too, when Files has patterns', '<True|False>'), CLPDefault('True')]
