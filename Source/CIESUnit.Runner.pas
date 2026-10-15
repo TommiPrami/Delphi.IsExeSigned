@@ -11,7 +11,6 @@ uses
 type
   TCIESRunner = class(TObject)
   strict private
-    FCheckSignatures: Boolean;
     FCommandLine: TCommandLineParameters;
     FFileStopwatch: TStopwatch;
     FInvalidSignatures: Integer;
@@ -20,13 +19,14 @@ type
     FLogTestSuite: TNUnitTestSuite;
     FSignedFiles: Integer;
     FSignerFilter: TWildCardFilter;
-    FSignFileFilter: TWildCardFilter;
     FSignFiles: Boolean;
+    FSignFilter: TWildCardFilter;
     FSignTimeouts: Integer;
     FUnsignedFiles: Integer;
+    FVerifySignatures: Boolean;
     // Checks one file, signs it first if asked. False when the run must stop.
     function CheckFile(const AFileName: string): Boolean;
-    function MustCheckSignature(const ASignerName: string; const ASignedNow: Boolean): Boolean;
+    function MustVerifySignature(const ASignerName: string; const ASignedNow: Boolean): Boolean;
     // Runs the sign command for AFileName, ASignError tells what went wrong, if anything. False when the run must
     // stop (timeout and ContinueOnSignTimeout is False).
     function SignFile(const AFileName: string; var ASignError: string): Boolean;
@@ -69,11 +69,11 @@ begin
   FLogger := TNUnitLogger.Create;
   FLogTestSuite := FLogger.AddTestSuite(LOG_TEST_SUITE_NAME);
 
-  FCheckSignatures := FCommandLine.CheckIsSignatureValid or not FCommandLine.CheckSignatureSignerFilter.IsEmpty;
-  FSignerFilter := TWildCardFilter.Create(SplitPatterns(FCommandLine.CheckSignatureSignerFilter), [], []);
-  FSignFiles := not FCommandLine.SignFileCommandLine.IsEmpty;
+  FVerifySignatures := FCommandLine.Verify or not FCommandLine.VerifySigners.IsEmpty;
+  FSignerFilter := TWildCardFilter.Create(SplitPatterns(FCommandLine.VerifySigners), [], []);
+  FSignFiles := not FCommandLine.SignCommand.IsEmpty;
   // Matched against the full path
-  FSignFileFilter := TWildCardFilter.Create(SplitPatterns(FCommandLine.SignFileWildCard), [], []);
+  FSignFilter := TWildCardFilter.Create(SplitPatterns(FCommandLine.SignFilter), [], []);
 end;
 
 destructor TCIESRunner.Destroy;
@@ -95,7 +95,7 @@ begin
   // What went wrong with the sign command, for the log
   var LSignError := '';
 
-  if not LIsSigned and FSignFiles and FSignFileFilter.Accepts(AFileName) then
+  if not LIsSigned and FSignFiles and FSignFilter.Accepts(AFileName) then
   begin
     if not SignFile(AFileName, LSignError) then
       Exit(False);
@@ -113,10 +113,10 @@ begin
     ReportUnsignedFile(AFileName, LSignError);
 end;
 
-function TCIESRunner.MustCheckSignature(const ASignerName: string; const ASignedNow: Boolean): Boolean;
+function TCIESRunner.MustVerifySignature(const ASignerName: string; const ASignedNow: Boolean): Boolean;
 begin
   // Just signed files are always checked, to make sure the signing really worked
-  Result := ASignedNow or (FCheckSignatures and FSignerFilter.Accepts(ASignerName));
+  Result := ASignedNow or (FVerifySignatures and FSignerFilter.Accepts(ASignerName));
 end;
 
 function TCIESRunner.SignFile(const AFileName: string; var ASignError: string): Boolean;
@@ -131,7 +131,7 @@ begin
   Writeln(FLineIndent + '> ' + AFileName.QuotedString('"') +  ' - is NOT Signed, signing it');
   Flush(Output);
 
-  if not RunSignFileCommand(FCommandLine.SignFileCommandLine, AFileName, FCommandLine.SignTimeout, LSignExitCode) then
+  if not RunSignFileCommand(FCommandLine.SignCommand, AFileName, FCommandLine.SignTimeout, LSignExitCode) then
   begin
     ASignError := 'Sign command did not finish in ' + FCommandLine.SignTimeout.ToString + ' seconds, it was stopped';
 
@@ -169,7 +169,7 @@ begin
   var LSignedText := (if ASignedNow then 'Signed now by ' else 'Signed by ') + ASignerName.QuotedString('"');
   var LSignedLine := AFileName.QuotedString('"') + ' - is ' + LSignedText;
 
-  if not MustCheckSignature(ASignerName, ASignedNow) then
+  if not MustVerifySignature(ASignerName, ASignedNow) then
   begin
     Writeln(FLineIndent + '- ' + LSignedLine);
 
@@ -195,8 +195,8 @@ procedure TCIESRunner.ReportUnsignedFile(const AFileName, ASignError: string);
 begin
   Writeln(FLineIndent + '* ' + AFileName.QuotedString('"') +  ' - is NOT Signed');
 
-  // Like the exit code: not signed fails only with ErrorIfNotSigned, otherwise it is a warning
-  AddLogTestCase(AFileName, if FCommandLine.ErrorIfNotSigned then ntrFailed else ntrWarning,
+  // Like the exit code: not signed fails only with FailIfUnsigned, otherwise it is a warning
+  AddLogTestCase(AFileName, if FCommandLine.FailIfUnsigned then ntrFailed else ntrWarning,
     'Not signed' + (if ASignError.IsEmpty then '' else '. ' + ASignError));
 
   Inc(FUnsignedFiles);
@@ -205,15 +205,15 @@ end;
 procedure TCIESRunner.Run;
 begin
   try
-    var LFiles := GetFiles(FCommandLine.FileName, FCommandLine.RecurseSubDirs);
+    var LFiles := GetFiles(FCommandLine.Files, FCommandLine.Recursive);
     var LFilesCount := Length(LFiles);
 
     if LFilesCount = 0 then
     begin
-      var LError := 'no files match the pattern ' + FCommandLine.FileName.QuotedString('"');
+      var LError := 'no files match the pattern ' + FCommandLine.Files.QuotedString('"');
 
-      SetParamValueError(PARAM_FILE_NAME, LError);
-      FLogTestSuite.AddTestCase(FCommandLine.FileName, ntrError, 0.0, LError);
+      SetParamValueError(PARAM_FILES, LError);
+      FLogTestSuite.AddTestCase(FCommandLine.Files, ntrError, 0.0, LError);
       Exit;
     end;
 
@@ -244,14 +244,14 @@ begin
   if LLogFileName.IsEmpty then
     Exit;
 
-  FLogger.SaveToFile(LLogFileName, FCommandLine.AllowLogOverwrite);
+  FLogger.SaveToFile(LLogFileName, FCommandLine.LogOverwrite);
 
   Writeln('Log written to ' + LLogFileName.QuotedString('"'));
 end;
 
 procedure TCIESRunner.SetExitCode;
 begin
-  if (FUnsignedFiles > 0) and FCommandLine.ErrorIfNotSigned then
+  if (FUnsignedFiles > 0) and FCommandLine.FailIfUnsigned then
     ExitCode := EXIT_CODE_NOT_SIGNED
   else if FInvalidSignatures > 0 then
     ExitCode := EXIT_CODE_SIGNATURE_NOT_VALID;
@@ -267,7 +267,7 @@ begin
   if FSignTimeouts > 0 then
     LSummary := LSummary + ', ' + FSignTimeouts.ToString + ' sign command timeout(s)';
 
-  if FCheckSignatures or FSignFiles then
+  if FVerifySignatures or FSignFiles then
     LSummary := LSummary + ', ' + FInvalidSignatures.ToString + ' with invalid signature';
 
   Writeln(LSummary + '.');

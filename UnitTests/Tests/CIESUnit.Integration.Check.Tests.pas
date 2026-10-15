@@ -18,14 +18,14 @@ type
 
     [Test] procedure SignedFile;
     [Test] procedure UnsignedFile;
-    [Test] procedure UnsignedFileWithoutErrorIfNotSigned;
+    [Test] procedure UnsignedFileWithoutFailIfUnsigned;
     [Test] procedure FileNameWithBracketsAndHashIsNotAPattern;
     [Test] procedure PatternIsCaseInsensitive;
     [Test] procedure PatternWithoutRecurseSkipsSubDirs;
     [Test] procedure SummaryCountsUnsignedFiles;
 
     [Test] procedure TamperedFileIsNotCheckedByDefault;
-    [Test] procedure TamperedFileWithCheckIsSignatureValid;
+    [Test] procedure TamperedFileWithVerify;
     [Test] procedure SignerFilterNotMatchingSkipsCheck;
     [Test] procedure SignerFilterMatchingChecks;
     [Test] procedure UnsignedTakesPrecedenceOverInvalidSignature;
@@ -50,7 +50,7 @@ end;
 
 procedure TIsExeSignedCheckTests.FileNameWithBracketsAndHashIsNotAPattern;
 begin
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.Add('App[x64] #2.exe', tfkSigned)]);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('App[x64] #2.exe', tfkSigned)]);
 
   Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
   Assert.Contains(LResult.Output, 'App[x64] #2.exe" - is Signed by');
@@ -61,7 +61,7 @@ begin
   FFiles.Add('a.exe', tfkSigned);
   FFiles.Add('B.Exe', tfkSigned);
 
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.PathOf('*.EXE')]);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.PathOf('*.EXE')]);
 
   Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
   Assert.Contains(LResult.Output, '2 files found');
@@ -72,7 +72,7 @@ begin
   FFiles.Add('Signed.exe', tfkSigned);
   FFiles.Add('Sub\Unsigned.exe', tfkUnsigned);
 
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.PathOf('*.exe'), '-RecurseSubDirs:False']);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.PathOf('*.exe'), '-Recursive:False']);
 
   Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
   Assert.DoesNotContain(LResult.Output, 'Unsigned.exe');
@@ -84,7 +84,7 @@ var
 begin
   IsExeSigned(SignedSystemFile, LSignerName);
 
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.Add('Signed.exe', tfkSigned)]);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Signed.exe', tfkSigned)]);
 
   Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
   Assert.Contains(LResult.Output, 'is Signed by "' + LSignerName + '"');
@@ -96,16 +96,16 @@ var
 begin
   IsExeSigned(SignedSystemFile, LSignerName);
 
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.Add('Tampered.exe', tfkTampered),
-    '-CheckSignatureSignerFilter:' + LSignerName.ToUpper]);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Tampered.exe', tfkTampered),
+    '-VerifySigners:' + LSignerName.ToUpper]);
 
   Assert.AreEqual(EXIT_CODE_SIGNATURE_NOT_VALID, LResult.ExitCode, LResult.Output);
 end;
 
 procedure TIsExeSignedCheckTests.SignerFilterNotMatchingSkipsCheck;
 begin
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.Add('Tampered.exe', tfkTampered),
-    '-CheckSignatureSignerFilter:*No Such Signer*;Other*']);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Tampered.exe', tfkTampered),
+    '-VerifySigners:*No Such Signer*;Other*']);
 
   Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
   Assert.DoesNotContain(LResult.Output, 'signature is');
@@ -117,7 +117,7 @@ begin
   FFiles.Add('b.exe', tfkSigned);
   FFiles.Add('c.exe', tfkUnsigned);
 
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.PathOf('*.exe')]);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.PathOf('*.exe')]);
 
   Assert.AreEqual(EXIT_CODE_NOT_SIGNED, LResult.ExitCode, LResult.Output);
   Assert.Contains(LResult.Output, '3 file(s) checked, 1 of them unsigned.');
@@ -125,17 +125,17 @@ end;
 
 procedure TIsExeSignedCheckTests.TamperedFileIsNotCheckedByDefault;
 begin
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.Add('Tampered.exe', tfkTampered)]);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Tampered.exe', tfkTampered)]);
 
   Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
 end;
 
-procedure TIsExeSignedCheckTests.TamperedFileWithCheckIsSignatureValid;
+procedure TIsExeSignedCheckTests.TamperedFileWithVerify;
 begin
   FFiles.Add('Signed.exe', tfkSigned);
   FFiles.Add('Tampered.exe', tfkTampered);
 
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.PathOf('*.exe'), '-CheckIsSignatureValid:True']);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.PathOf('*.exe'), '-Verify:True']);
 
   Assert.AreEqual(EXIT_CODE_SIGNATURE_NOT_VALID, LResult.ExitCode, LResult.Output);
   Assert.Contains(LResult.Output, 'Signed.exe" - is Signed by');
@@ -148,15 +148,15 @@ end;
 
 procedure TIsExeSignedCheckTests.UnsignedFile;
 begin
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.Add('Unsigned.exe', tfkUnsigned)]);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Unsigned.exe', tfkUnsigned)]);
 
   Assert.AreEqual(EXIT_CODE_NOT_SIGNED, LResult.ExitCode, LResult.Output);
   Assert.Contains(LResult.Output, 'is NOT Signed');
 end;
 
-procedure TIsExeSignedCheckTests.UnsignedFileWithoutErrorIfNotSigned;
+procedure TIsExeSignedCheckTests.UnsignedFileWithoutFailIfUnsigned;
 begin
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.Add('Unsigned.exe', tfkUnsigned), '-ErrorIfNotSigned:False']);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Unsigned.exe', tfkUnsigned), '-FailIfUnsigned:False']);
 
   Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
 end;
@@ -166,7 +166,7 @@ begin
   FFiles.Add('Tampered.exe', tfkTampered);
   FFiles.Add('Unsigned.exe', tfkUnsigned);
 
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.PathOf('*.exe'), '-CheckIsSignatureValid:True']);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.PathOf('*.exe'), '-Verify:True']);
 
   Assert.AreEqual(EXIT_CODE_NOT_SIGNED, LResult.ExitCode, LResult.Output);
 end;

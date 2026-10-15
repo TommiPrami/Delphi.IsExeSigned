@@ -20,7 +20,7 @@ type
 
     [Test] procedure SignsAllUnsignedFiles;
     [Test] procedure AlreadySignedFileIsNotSigned;
-    [Test] procedure SignFileWildCardSignsOnlyMatchingFiles;
+    [Test] procedure SignFilterSignsOnlyMatchingFiles;
     [Test] procedure FailingSignCommandLeavesFileUnsigned;
     [Test] procedure SigningThatGivesInvalidSignature;
     [Test] procedure SignTimeoutStops;
@@ -53,12 +53,12 @@ end;
 
 function TIsExeSignedSigningTests.SignCommand(const AKind: TSignToolKind): string;
 begin
-  Result := '-SignFileCommandLine:' + FFiles.CreateSignTool(AKind) + ' %filename%';
+  Result := '-SignCommand:' + FFiles.CreateSignTool(AKind) + ' %filename%';
 end;
 
 procedure TIsExeSignedSigningTests.AlreadySignedFileIsNotSigned;
 begin
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.Add('Signed.exe', tfkSigned), SignCommand(stkSign)]);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Signed.exe', tfkSigned), SignCommand(stkSign)]);
 
   Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
   Assert.AreEqual('', FFiles.SignToolLog, 'Sign tool was run');
@@ -70,7 +70,7 @@ begin
   FFiles.Add('b.exe', tfkUnsigned);
   FFiles.Add('c.exe', tfkSigned);
 
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.PathOf('*.exe'), SignCommand(stkHang), '-SignTimeout:1',
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.PathOf('*.exe'), SignCommand(stkHang), '-SignTimeout:1',
     '-ContinueOnSignTimeout:True']);
 
   Assert.AreEqual(EXIT_CODE_NOT_SIGNED, LResult.ExitCode, LResult.Output);
@@ -81,21 +81,21 @@ procedure TIsExeSignedSigningTests.FailingSignCommandLeavesFileUnsigned;
 begin
   var LFileName := FFiles.Add('Unsigned.exe', tfkUnsigned);
 
-  var LResult := RunIsExeSigned(['-FileName:' + LFileName, SignCommand(stkFail)]);
+  var LResult := RunIsExeSigned(['-Files:' + LFileName, SignCommand(stkFail)]);
 
   Assert.AreEqual(EXIT_CODE_NOT_SIGNED, LResult.ExitCode, LResult.Output);
   Assert.Contains(LResult.Output, 'Sign command returned exit code 7');
   Assert.IsFalse(IsSigned(LFileName));
 end;
 
-procedure TIsExeSignedSigningTests.SignFileWildCardSignsOnlyMatchingFiles;
+procedure TIsExeSignedSigningTests.SignFilterSignsOnlyMatchingFiles;
 begin
   var LSignMe := FFiles.Add('Sign Me\a.dll', tfkUnsigned);
   var LLeaveMe := FFiles.Add('Leave Me\b.dll', tfkUnsigned);
 
   // Matched against the full path
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.PathOf('*.dll'), SignCommand(stkSign),
-    '-SignFileWildCard:*\Sign Me\*;*\Nothing\*']);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.PathOf('*.dll'), SignCommand(stkSign),
+    '-SignFilter:*\Sign Me\*;*\Nothing\*']);
 
   Assert.AreEqual(EXIT_CODE_NOT_SIGNED, LResult.ExitCode, LResult.Output);
   Assert.IsTrue(IsSigned(LSignMe), 'Matching file not signed');
@@ -107,7 +107,7 @@ begin
   FFiles.Add('a.exe', tfkUnsigned);
   FFiles.Add('b.exe', tfkUnsigned);
 
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.PathOf('*.exe'), SignCommand(stkHang), '-SignTimeout:1']);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.PathOf('*.exe'), SignCommand(stkHang), '-SignTimeout:1']);
 
   Assert.AreEqual(EXIT_CODE_SIGN_TIMEOUT, LResult.ExitCode, LResult.Output);
   Assert.Contains(LResult.Output, 'did not finish in 1 seconds');
@@ -117,7 +117,7 @@ end;
 
 procedure TIsExeSignedSigningTests.SigningThatGivesInvalidSignature;
 begin
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.Add('Unsigned.exe', tfkUnsigned), SignCommand(stkSignInvalid)]);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Unsigned.exe', tfkUnsigned), SignCommand(stkSignInvalid)]);
 
   // Just signed files are always checked
   Assert.AreEqual(EXIT_CODE_SIGNATURE_NOT_VALID, LResult.ExitCode, LResult.Output);
@@ -131,7 +131,7 @@ begin
   var LSecond := FFiles.Add('Sub Dir\b.dll', tfkUnsigned);
   FFiles.Add('c.exe', tfkSigned);
 
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.PathOf('*.exe;*.dll'), SignCommand(stkSign)]);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.PathOf('*.exe;*.dll'), SignCommand(stkSign)]);
 
   Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
   Assert.Contains(LResult.Output, '3 file(s) checked, 0 of them unsigned, 2 signed now, 0 with invalid signature.');

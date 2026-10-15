@@ -30,26 +30,26 @@ begin
     Exit;
   end;
 
-  if TWildCard.IsWildCard(AParameters.FileName) then
+  if TWildCard.IsWildCard(AParameters.Files) then
   begin
-    var LPath := ExtractFilePath(AParameters.FileName);
+    var LPath := ExtractFilePath(AParameters.Files);
 
     if LPath.IsEmpty then
     begin
-      SetParamValueError(PARAM_FILE_NAME, 'file name pattern must include the directory');
+      SetParamValueError(PARAM_FILES, 'file name pattern must include the directory');
 
       Result := False;
     end
     else if not DirectoryExists(LPath) then
     begin
-      SetParamValueError(PARAM_FILE_NAME, 'directory ' + LPath.QuotedString('"') + ' does not exist');
+      SetParamValueError(PARAM_FILES, 'directory ' + LPath.QuotedString('"') + ' does not exist');
 
       Result := False;
     end;
   end
-  else if not FileExists(AParameters.FileName) then
+  else if not FileExists(AParameters.Files) then
   begin
-    SetParamValueError(PARAM_FILE_NAME, 'file ' + AParameters.FileName.QuotedString('"') + ' does not exist');
+    SetParamValueError(PARAM_FILES, 'file ' + AParameters.Files.QuotedString('"') + ' does not exist');
 
     Result := False;
   end;
@@ -57,22 +57,16 @@ begin
   if not Result then
     Exit;
 
-  if not AParameters.SignFileCommandLine.IsEmpty and not ContainsText(AParameters.SignFileCommandLine, SIGN_FILE_NAME_PLACEHOLDER) then
+  if not AParameters.SignCommand.IsEmpty and not ContainsText(AParameters.SignCommand, SIGN_FILE_NAME_PLACEHOLDER) then
   begin
-    SetParamValueError(PARAM_SIGN_FILE_COMMAND_LINE, SIGN_FILE_NAME_PLACEHOLDER + ' is missing from the command line',
+    SetParamValueError(PARAM_SIGN_COMMAND, SIGN_FILE_NAME_PLACEHOLDER + ' is missing from the command line',
       EXIT_CODE_SIGN_COMMAND_NO_FILE_NAME);
 
     Result := False;
   end
-  else if AParameters.SignFileCommandLine.IsEmpty and not AParameters.SignFileWildCard.IsEmpty then
+  else if AParameters.SignCommand.IsEmpty and not AParameters.SignFilter.IsEmpty then
   begin
-    SetParamValueError(PARAM_SIGN_FILE_WILD_CARD, 'can not be used without ' + PARAM_SIGN_FILE_COMMAND_LINE);
-
-    Result := False;
-  end
-  else if (AParameters.SignTimeout < 1) or (AParameters.SignTimeout > SIGN_TIMEOUT_MAX) then
-  begin
-    SetParamValueError(PARAM_SIGN_TIMEOUT, 'must be between 1 and ' + SIGN_TIMEOUT_MAX.ToString + ' seconds');
+    SetParamValueError(PARAM_SIGN_FILTER, 'can not be used without ' + PARAM_SIGN_COMMAND);
 
     Result := False;
   end;
@@ -90,19 +84,19 @@ begin
 
   if ExtractFileName(LLogFileName).IsEmpty then
   begin
-    SetParamValueError(PARAM_LOG_FILE_NAME, 'file name is missing from ' + LLogFileName.QuotedString('"'));
+    SetParamValueError(PARAM_LOG_FILE, 'file name is missing from ' + LLogFileName.QuotedString('"'));
 
     Result := False;
   end
   else if not DirectoryExists(LLogDirectory) then
   begin
-    SetParamValueError(PARAM_LOG_FILE_NAME, 'directory ' + LLogDirectory.QuotedString('"') + ' does not exist');
+    SetParamValueError(PARAM_LOG_FILE, 'directory ' + LLogDirectory.QuotedString('"') + ' does not exist');
 
     Result := False;
   end
-  else if FileExists(LLogFileName) and not AParameters.AllowLogOverwrite then
+  else if FileExists(LLogFileName) and not AParameters.LogOverwrite then
   begin
-    SetParamValueError(PARAM_LOG_FILE_NAME, 'file ' + LLogFileName.QuotedString('"') + ' exists and AllowLogOverwrite is False');
+    SetParamValueError(PARAM_LOG_FILE, 'file ' + LLogFileName.QuotedString('"') + ' exists and LogOverwrite is False');
 
     Result := False;
   end;

@@ -18,9 +18,9 @@ type
 
     [Test] procedure GetLogFileNameIsEmptyWithoutLogParameters;
     [Test] procedure GetLogFileNameDefaultsToApplicationFolder;
-    [Test] procedure GetLogFileNameDoesNotChangeLogFileName;
-    [Test] procedure GetLogFileNameExpandsRelativeLogFileName;
-    [Test] procedure LogFileNameIsUsedWithoutLogToFile;
+    [Test] procedure GetLogFileNameDoesNotChangeLogFile;
+    [Test] procedure GetLogFileNameExpandsRelativeLogFile;
+    [Test] procedure LogFileIsUsedWithoutLog;
   end;
 
 implementation
@@ -42,30 +42,30 @@ end;
 
 procedure TCommandLineParametersTests.GetLogFileNameDefaultsToApplicationFolder;
 begin
-  FParameters.LogToFile := True;
+  FParameters.Log := True;
 
   Assert.AreEqual(ExtractFilePath(ParamStr(0)) + LOG_FILE_NAME_DEFAULT, FParameters.GetLogFileName);
 end;
 
-procedure TCommandLineParametersTests.GetLogFileNameDoesNotChangeLogFileName;
+procedure TCommandLineParametersTests.GetLogFileNameDoesNotChangeLogFile;
 begin
-  FParameters.LogToFile := True;
-  FParameters.LogFileName := 'Relative.xml';
+  FParameters.Log := True;
+  FParameters.LogFile := 'Relative.xml';
 
   FParameters.GetLogFileName;
 
-  Assert.AreEqual('Relative.xml', FParameters.LogFileName);
+  Assert.AreEqual('Relative.xml', FParameters.LogFile);
 
-  FParameters.LogFileName := '';
+  FParameters.LogFile := '';
 
   FParameters.GetLogFileName;
 
-  Assert.AreEqual('', FParameters.LogFileName, 'Default file name stored into LogFileName');
+  Assert.AreEqual('', FParameters.LogFile, 'Default file name stored into LogFile');
 end;
 
-procedure TCommandLineParametersTests.GetLogFileNameExpandsRelativeLogFileName;
+procedure TCommandLineParametersTests.GetLogFileNameExpandsRelativeLogFile;
 begin
-  FParameters.LogFileName := 'Logs\Result.xml';
+  FParameters.LogFile := 'Logs\Result.xml';
 
   Assert.AreEqual(ExpandFileName('Logs\Result.xml'), FParameters.GetLogFileName);
 end;
@@ -75,10 +75,10 @@ begin
   Assert.AreEqual('', FParameters.GetLogFileName);
 end;
 
-procedure TCommandLineParametersTests.LogFileNameIsUsedWithoutLogToFile;
+procedure TCommandLineParametersTests.LogFileIsUsedWithoutLog;
 begin
-  FParameters.LogToFile := False;
-  FParameters.LogFileName := 'C:\Logs\Result.xml';
+  FParameters.Log := False;
+  FParameters.LogFile := 'C:\Logs\Result.xml';
 
   Assert.AreEqual('C:\Logs\Result.xml', FParameters.GetLogFileName);
 end;

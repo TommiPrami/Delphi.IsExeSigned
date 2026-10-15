@@ -23,7 +23,7 @@ type
   // A fresh temp folder per instance, deleted on Free.
   //   <Root>\Test Files - the files to check, a space in the path on purpose, quoting must work everywhere
   //   <Root>\Tools      - fake sign tools and their source files, outside of the checked files. Without spaces (8.3
-  //                       path, if the temp path has them), as quotes in the -SignFileCommandLine value do not get
+  //                       path, if the temp path has them), as quotes in the -SignCommand value do not get
   //                       through the command line parsing
   TTestFiles = class(TObject)
   strict private

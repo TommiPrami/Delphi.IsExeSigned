@@ -4,7 +4,7 @@ interface
 
   function IsExeSigned(const AExeFileName: string; out ASignerName: string): Boolean;
   function IsSignatureValid(const AExeFileName: string; out AErrorMessage: string): Boolean;
-  function GetFiles(const AFileNamePattern: string; const ARecurseSubDirs: Boolean): TArray<string>;
+  function GetFiles(const AFileNamePattern: string; const ARecursive: Boolean): TArray<string>;
   // Returns False if the command did not finish in ATimeoutSeconds, it is then stopped
   function RunSignFileCommand(const ACommandLine, AFileName: string; const ATimeoutSeconds: Integer; out AExitCode: Cardinal): Boolean;
 
@@ -120,7 +120,7 @@ begin
     AErrorMessage := SysErrorMessage(Cardinal(LResult)) + ' (0x' + IntToHex(Cardinal(LResult), 8) + ')';
 end;
 
-function GetFiles(const AFileNamePattern: string; const ARecurseSubDirs: Boolean): TArray<string>;
+function GetFiles(const AFileNamePattern: string; const ARecursive: Boolean): TArray<string>;
 begin
   if TWildCard.IsWildCard(AFileNamePattern) then
   begin
@@ -128,7 +128,7 @@ begin
     var LFilterString := ExtractFileName(AFileNamePattern);
 
     var LAllFiles := TDirectory.GetFiles(LPath, '*',
-      if ARecurseSubDirs then TSearchOption.soAllDirectories else TSearchOption.soTopDirectoryOnly);
+      if ARecursive then TSearchOption.soAllDirectories else TSearchOption.soTopDirectoryOnly);
 
     var LFilter := TWildCardFilter.Create(LFilterString.Split([';']), [], []);
     var LCount := 0;

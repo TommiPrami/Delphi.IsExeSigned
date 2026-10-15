@@ -8,58 +8,60 @@ uses
 type
   TCommandLineParameters = class(TObject)
   strict private
-    FFileName: string;
-    FErrorIfNotSigned: Boolean;
-    FRecurseSubDirs: Boolean;
-    FCheckIsSignatureValid: Boolean;
-    FCheckSignatureSignerFilter: string;
-    FSignFileCommandLine: string;
-    FSignFileWildCard: string;
+    FFiles: string;
+    FFailIfUnsigned: Boolean;
+    FRecursive: Boolean;
+    FVerify: Boolean;
+    FVerifySigners: string;
+    FSignCommand: string;
+    FSignFilter: string;
     FSignTimeout: Integer;
     FContinueOnSignTimeout: Boolean;
-    FLogToFile: Boolean;
-    FLogFileName: string;
-    FAllowLogOverwrite: Boolean;
+    FLog: Boolean;
+    FLogFile: string;
+    FLogOverwrite: Boolean;
   public
-    // Full path of the NUnit XML log file to write, '' when no log is written: LogFileName if given, otherwise
-    // LOG_FILE_NAME_DEFAULT in the application folder if LogToFile is True
+    // Full path of the NUnit XML log file to write, '' when no log is written: LogFile if given, otherwise
+    // LOG_FILE_NAME_DEFAULT in the application folder if Log is True
     function GetLogFileName: string;
 
-    [CLPLongName('FileName'), CLPDescription('Filename', '<path\[filename/*.dll;File<##>Util*.exe]>'), CLPDefault(''), CLPRequired]
-    property FileName: string read FFileName write FFileName;
+    // The second long names are the names before 2026-10, kept so existing scripts keep working
 
-    [CLPLongName('ErrorIfNotSigned'), CLPDescription('Return exit code [1] if exe/dll not signed', '<Boolean>'), CLPDefault('True')]
-    property ErrorIfNotSigned: Boolean read FErrorIfNotSigned write FErrorIfNotSigned;
+    [CLPLongName('Files'), CLPLongName('FileName'), CLPDescription('File, or directory and patterns separated by ";"', '<file|dir\pattern[;pattern]>'), CLPDefault(''), CLPRequired]
+    property Files: string read FFiles write FFiles;
 
-    [CLPLongName('RecurseSubDirs'), CLPDescription('Recurse sub dirs if filename has search pattern', '<Boolean>'), CLPDefault('True')]
-    property RecurseSubDirs: Boolean read FRecurseSubDirs write FRecurseSubDirs;
+    [CLPLongName('FailIfUnsigned'), CLPLongName('ErrorIfNotSigned'), CLPDescription('Return exit code [1] if a file is not signed', '<True|False>'), CLPDefault('True')]
+    property FailIfUnsigned: Boolean read FFailIfUnsigned write FFailIfUnsigned;
 
-    [CLPLongName('CheckIsSignatureValid'), CLPDescription('Return exit code [5] if signature is not valid', '<Boolean>'), CLPDefault('False')]
-    property CheckIsSignatureValid: Boolean read FCheckIsSignatureValid write FCheckIsSignatureValid;
+    [CLPLongName('Recursive'), CLPDescription('Search the sub directories too, when Files has patterns', '<True|False>'), CLPDefault('True')]
+    property Recursive: Boolean read FRecursive write FRecursive;
 
-    [CLPLongName('CheckSignatureSignerFilter'), CLPDescription('Check signature validity only for matching signers, implies CheckIsSignatureValid', '<*Signer*;Signer*>'), CLPDefault('')]
-    property CheckSignatureSignerFilter: string read FCheckSignatureSignerFilter write FCheckSignatureSignerFilter;
+    [CLPLongName('Verify'), CLPDescription('Verify the signatures, return exit code [5] if one is not valid', '<True|False>'), CLPDefault('False')]
+    property Verify: Boolean read FVerify write FVerify;
 
-    [CLPLongName('SignFileCommandLine'), CLPDescription('Command to sign unsigned files with, %filename% is replaced with the file name. Return exit code [6] if %filename% is missing', '<C:\SignFile.bat %filename%>'), CLPDefault('')]
-    property SignFileCommandLine: string read FSignFileCommandLine write FSignFileCommandLine;
+    [CLPLongName('VerifySigners'), CLPDescription('Verify only the signatures of matching signers, implies Verify', '<*Signer*[;Signer*]>'), CLPDefault('')]
+    property VerifySigners: string read FVerifySigners write FVerifySigners;
 
-    [CLPLongName('SignFileWildCard'), CLPDescription('Sign only unsigned files whose full path matches, all unsigned files if not given', '<*\Dir\*.dll;*\Other\*>'), CLPDefault('')]
-    property SignFileWildCard: string read FSignFileWildCard write FSignFileWildCard;
+    [CLPLongName('SignCommand'), CLPDescription('Command to sign unsigned files with, %filename% is replaced with the file name. Return exit code [6] if %filename% is missing', '<C:\SignFile.bat %filename%>'), CLPDefault('')]
+    property SignCommand: string read FSignCommand write FSignCommand;
 
-    [CLPLongName('SignTimeout'), CLPDescription('Seconds to wait for the sign command, then it is stopped', '<1..86400>'), CLPDefault('60')]
+    [CLPLongName('SignFilter'), CLPDescription('Sign only unsigned files whose full path matches, all unsigned files if not given', '<*\Dir\*.dll[;*\Other\*]>'), CLPDefault('')]
+    property SignFilter: string read FSignFilter write FSignFilter;
+
+    [CLPLongName('SignTimeout'), CLPDescription('Seconds to wait for the sign command, then it is stopped', '<1..86400>'), CLPDefault('60'), CLPRange(1, SIGN_TIMEOUT_MAX)]
     property SignTimeout: Integer read FSignTimeout write FSignTimeout;
 
-    [CLPLongName('ContinueOnSignTimeout'), CLPDescription('Continue with the next file when the sign command times out, otherwise stop and return exit code [7]', '<Boolean>'), CLPDefault('False')]
+    [CLPLongName('ContinueOnSignTimeout'), CLPDescription('Continue with the next file when the sign command times out, otherwise stop and return exit code [7]', '<True|False>'), CLPDefault('False')]
     property ContinueOnSignTimeout: Boolean read FContinueOnSignTimeout write FContinueOnSignTimeout;
 
-    [CLPLongName('LogToFile'), CLPDescription('Write NUnit XML log, to LogFileName or to IsExeSigned.xml in the application folder', '<Boolean>'), CLPDefault('False')]
-    property LogToFile: Boolean read FLogToFile write FLogToFile;
+    [CLPLongName('Log'), CLPDescription('Write NUnit XML log, to LogFile or to IsExeSigned.xml in the application folder', '<True|False>'), CLPDefault('False')]
+    property Log: Boolean read FLog write FLog;
 
-    [CLPLongName('LogFileName'), CLPDescription('NUnit XML log file, implies LogToFile. The directory must exist', '<path\filename.xml>'), CLPDefault('')]
-    property LogFileName: string read FLogFileName write FLogFileName;
+    [CLPLongName('LogFile'), CLPDescription('NUnit XML log file, implies Log. The directory must exist', '<path\filename.xml>'), CLPDefault('')]
+    property LogFile: string read FLogFile write FLogFile;
 
-    [CLPLongName('AllowLogOverwrite'), CLPDescription('Overwrite an existing log file, if False and the log file exists, return exit code [3]', '<Boolean>'), CLPDefault('True')]
-    property AllowLogOverwrite: Boolean read FAllowLogOverwrite write FAllowLogOverwrite;
+    [CLPLongName('LogOverwrite'), CLPDescription('Overwrite an existing log file, if False and the log file exists, return exit code [3]', '<True|False>'), CLPDefault('True')]
+    property LogOverwrite: Boolean read FLogOverwrite write FLogOverwrite;
   end;
 
 {
@@ -171,9 +173,9 @@ uses
 
 function TCommandLineParameters.GetLogFileName: string;
 begin
-  if not FLogFileName.IsEmpty then
-    Result := ExpandFileName(FLogFileName)
-  else if FLogToFile then
+  if not FLogFile.IsEmpty then
+    Result := ExpandFileName(FLogFile)
+  else if FLog then
     Result := ExtractFilePath(ParamStr(0)) + LOG_FILE_NAME_DEFAULT
   else
     Result := '';

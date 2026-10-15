@@ -20,13 +20,13 @@ type
     [TearDown] procedure TearDown;
 
     [Test] procedure NoLogByDefault;
-    [Test] procedure LogToFileWritesToApplicationFolder;
-    [Test] procedure LogFileNameWritesLog;
-    [Test] procedure LogFileNameWithoutFileName;
+    [Test] procedure LogWritesToApplicationFolder;
+    [Test] procedure LogFileWritesLog;
+    [Test] procedure LogFileWithoutFileName;
     [Test] procedure LogDirectoryMissing;
     [Test] procedure ExistingLogIsOverwrittenByDefault;
-    [Test] procedure ExistingLogWithoutAllowLogOverwrite;
-    [Test] procedure UnsignedWithoutErrorIfNotSignedIsWarning;
+    [Test] procedure ExistingLogWithoutLogOverwrite;
+    [Test] procedure UnsignedWithoutFailIfUnsignedIsWarning;
     [Test] procedure InvalidSignatureFails;
     [Test] procedure LogIsWrittenWhenSignTimeoutStops;
   end;
@@ -80,28 +80,28 @@ procedure TIsExeSignedLogTests.ExistingLogIsOverwrittenByDefault;
 begin
   TFile.WriteAllText(LogFileName, 'Old log');
 
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.Add('Signed.exe', tfkSigned), '-LogFileName:' + LogFileName]);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Signed.exe', tfkSigned), '-LogFile:' + LogFileName]);
 
   Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
   Assert.Contains(ReadLog(LogFileName), '<test-run');
 end;
 
-procedure TIsExeSignedLogTests.ExistingLogWithoutAllowLogOverwrite;
+procedure TIsExeSignedLogTests.ExistingLogWithoutLogOverwrite;
 begin
   TFile.WriteAllText(LogFileName, 'Old log');
 
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.Add('Signed.exe', tfkSigned), '-LogFileName:' + LogFileName,
-    '-AllowLogOverwrite:False']);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Signed.exe', tfkSigned), '-LogFile:' + LogFileName,
+    '-LogOverwrite:False']);
 
   Assert.AreEqual(EXIT_CODE_PARAM_VALUE_ERROR, LResult.ExitCode, LResult.Output);
-  Assert.Contains(LResult.Output, 'AllowLogOverwrite is False');
+  Assert.Contains(LResult.Output, 'LogOverwrite is False');
   Assert.AreEqual('Old log', ReadLog(LogFileName));
 end;
 
 procedure TIsExeSignedLogTests.InvalidSignatureFails;
 begin
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.Add('Tampered.exe', tfkTampered), '-CheckIsSignatureValid:True',
-    '-LogFileName:' + LogFileName]);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Tampered.exe', tfkTampered), '-Verify:True',
+    '-LogFile:' + LogFileName]);
 
   Assert.AreEqual(EXIT_CODE_SIGNATURE_NOT_VALID, LResult.ExitCode, LResult.Output);
 
@@ -115,30 +115,30 @@ procedure TIsExeSignedLogTests.LogDirectoryMissing;
 begin
   var LMissing := TPath.Combine(FFiles.Root, 'Missing\Result.xml');
 
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.Add('Signed.exe', tfkSigned), '-LogFileName:' + LMissing]);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Signed.exe', tfkSigned), '-LogFile:' + LMissing]);
 
   Assert.AreEqual(EXIT_CODE_PARAM_VALUE_ERROR, LResult.ExitCode, LResult.Output);
   Assert.Contains(LResult.Output, 'does not exist');
   Assert.IsFalse(TFile.Exists(LMissing));
 end;
 
-procedure TIsExeSignedLogTests.LogFileNameWithoutFileName;
+procedure TIsExeSignedLogTests.LogFileWithoutFileName;
 begin
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.Add('Signed.exe', tfkSigned),
-    '-LogFileName:' + ExtractFilePath(LogFileName)]);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Signed.exe', tfkSigned),
+    '-LogFile:' + ExtractFilePath(LogFileName)]);
 
   Assert.AreEqual(EXIT_CODE_PARAM_VALUE_ERROR, LResult.ExitCode, LResult.Output);
   Assert.Contains(LResult.Output, 'file name is missing');
 end;
 
-procedure TIsExeSignedLogTests.LogFileNameWritesLog;
+procedure TIsExeSignedLogTests.LogFileWritesLog;
 var
   LSignerName: string;
 begin
   FFiles.Add('Signed.exe', tfkSigned);
   FFiles.Add('Unsigned.exe', tfkUnsigned);
 
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.PathOf('*.exe'), '-LogFileName:' + LogFileName]);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.PathOf('*.exe'), '-LogFile:' + LogFileName]);
 
   Assert.AreEqual(EXIT_CODE_NOT_SIGNED, LResult.ExitCode, LResult.Output);
   Assert.Contains(LResult.Output, 'Log written to "' + LogFileName + '"');
@@ -162,8 +162,8 @@ begin
   FFiles.Add('a.exe', tfkUnsigned);
   FFiles.Add('b.exe', tfkUnsigned);
 
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.PathOf('*.exe'),
-    '-SignFileCommandLine:' + FFiles.CreateSignTool(stkHang) + ' %filename%', '-SignTimeout:1', '-LogFileName:' + LogFileName]);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.PathOf('*.exe'),
+    '-SignCommand:' + FFiles.CreateSignTool(stkHang) + ' %filename%', '-SignTimeout:1', '-LogFile:' + LogFileName]);
 
   Assert.AreEqual(EXIT_CODE_SIGN_TIMEOUT, LResult.ExitCode, LResult.Output);
 
@@ -175,11 +175,11 @@ begin
   Assert.Contains(LLog, 'did not finish in 1 seconds');
 end;
 
-procedure TIsExeSignedLogTests.LogToFileWritesToApplicationFolder;
+procedure TIsExeSignedLogTests.LogWritesToApplicationFolder;
 begin
   var LExeFileName := FFiles.CopyIsExeSigned;
 
-  var LResult := RunIsExeSigned(LExeFileName, ['-FileName:' + FFiles.Add('Signed.exe', tfkSigned), '-LogToFile:True']);
+  var LResult := RunIsExeSigned(LExeFileName, ['-Files:' + FFiles.Add('Signed.exe', tfkSigned), '-Log:True']);
 
   Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
   Assert.Contains(ReadLog(ExtractFilePath(LExeFileName) + LOG_FILE_NAME_DEFAULT), 'result="Passed"');
@@ -189,17 +189,17 @@ procedure TIsExeSignedLogTests.NoLogByDefault;
 begin
   var LExeFileName := FFiles.CopyIsExeSigned;
 
-  var LResult := RunIsExeSigned(LExeFileName, ['-FileName:' + FFiles.Add('Signed.exe', tfkSigned)]);
+  var LResult := RunIsExeSigned(LExeFileName, ['-Files:' + FFiles.Add('Signed.exe', tfkSigned)]);
 
   Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
   Assert.DoesNotContain(LResult.Output, 'Log written');
   Assert.IsFalse(TFile.Exists(ExtractFilePath(LExeFileName) + LOG_FILE_NAME_DEFAULT));
 end;
 
-procedure TIsExeSignedLogTests.UnsignedWithoutErrorIfNotSignedIsWarning;
+procedure TIsExeSignedLogTests.UnsignedWithoutFailIfUnsignedIsWarning;
 begin
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.Add('Unsigned.exe', tfkUnsigned), '-ErrorIfNotSigned:False',
-    '-LogFileName:' + LogFileName]);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Unsigned.exe', tfkUnsigned), '-FailIfUnsigned:False',
+    '-LogFile:' + LogFileName]);
 
   Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
   Assert.Contains(ReadLog(LogFileName), 'result="Warning" total="1" passed="0" failed="0" warnings="1"');
