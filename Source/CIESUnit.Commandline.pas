@@ -5,13 +5,59 @@ interface
 uses
   Delphi.CommandLineParser, CIESUnit.Consts, CIESUnit.Types;
 
+  function ParamValueErrorText(const AParamName, AErrorSuffix: string): string;
   function ParseCommandLine(const AParameters: TCommandLineParameters): Boolean;
   procedure SetParamValueError(const AParamName, AErrorSuffix: string; const AExitCode: Integer = EXIT_CODE_PARAM_VALUE_ERROR);
 
 implementation
 
 uses
-  System.StrUtils, System.SysUtils, Delphi.WildCardMatcher;
+  System.StrUtils, System.SysUtils, System.TypInfo, Delphi.WildCardMatcher;
+
+const
+  // Length of the longest parameter name, ContinueOnSignTimeout
+  SETTING_NAME_WIDTH = 21;
+
+procedure WriteSetting(const AName, AValue: string);
+begin
+  Writeln('  ' + AName.PadRight(SETTING_NAME_WIDTH) + ' : ' + AValue);
+end;
+
+function BooleanText(const AValue: Boolean): string;
+begin
+  Result := BoolToStr(AValue, True);
+end;
+
+function QuotedText(const AValue: string): string;
+begin
+  Result := AValue.QuotedString('"');
+end;
+
+// The settings the run uses: the parameters with their defaults, Auto resolved, and the implied ones applied
+procedure WriteSettings(const AParameters: TCommandLineParameters);
+begin
+  var LFailMode := GetEnumName(TypeInfo(TFailMode), Ord(AParameters.GetEffectiveFailMode));
+
+  if AParameters.FailMode = Auto then
+    LFailMode := LFailMode + ' (Auto)';
+
+  var LLogFileName := AParameters.GetLogFileName;
+
+  Writeln('Settings:');
+  WriteSetting('Files', QuotedText(AParameters.Files));
+  WriteSetting('FailMode', LFailMode);
+  WriteSetting('Recursive', BooleanText(AParameters.Recursive));
+  WriteSetting('Verify', BooleanText(AParameters.GetEffectiveVerify));
+  WriteSetting('VerifySigners', QuotedText(AParameters.VerifySigners));
+  WriteSetting('SignCommand', QuotedText(AParameters.SignCommand));
+  WriteSetting('SignFilter', QuotedText(AParameters.SignFilter));
+  WriteSetting('SignTimeout', AParameters.SignTimeout.ToString);
+  WriteSetting('ContinueOnSignTimeout', BooleanText(AParameters.ContinueOnSignTimeout));
+  WriteSetting('Log', BooleanText(not LLogFileName.IsEmpty));
+  WriteSetting('LogFile', QuotedText(LLogFileName));
+  WriteSetting('LogOverwrite', BooleanText(AParameters.LogOverwrite));
+  Writeln;
+end;
 
 function ParseCommandLine(const AParameters: TCommandLineParameters): Boolean;
 var
@@ -29,6 +75,10 @@ begin
 
     Exit;
   end;
+
+  // Before the parameter values are checked, so the settings show also when one is not valid
+  if AParameters.Verbose then
+    WriteSettings(AParameters);
 
   if TWildCard.IsWildCard(AParameters.Files) then
   begin
@@ -104,9 +154,14 @@ end;
 
 procedure SetParamValueError(const AParamName, AErrorSuffix: string; const AExitCode: Integer = EXIT_CODE_PARAM_VALUE_ERROR);
 begin
-  Writeln('Error in Parameter ' + AParamName.QuotedString('"') + ' - ' + AErrorSuffix);
+  Writeln(ParamValueErrorText(AParamName, AErrorSuffix));
 
   ExitCode := AExitCode;
+end;
+
+function ParamValueErrorText(const AParamName, AErrorSuffix: string): string;
+begin
+  Result := 'Error in Parameter ' + AParamName.QuotedString('"') + ' - ' + AErrorSuffix;
 end;
 
 end.

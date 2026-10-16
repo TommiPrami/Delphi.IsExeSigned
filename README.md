@@ -7,11 +7,12 @@ Right now it’s mainly used in CI as a sanity check: making sure the `.exe` fil
 ## Usage
 
 ```
-IsExeSigned.exe -Files:"<FILE|DIR\PATTERN[;PATTERN]>" [-FailIfUnsigned:<True|False>] [-Recursive:<True|False>]
+IsExeSigned.exe -Files:"<FILE|DIR\PATTERN[;PATTERN]>" [-FailMode:<Auto|FailOnError|LogOnly>] [-Recursive:<True|False>]
   [-Verify:<True|False>] [-VerifySigners:"<PATTERN>"]
   [-SignCommand:"<COMMAND %filename%>"] [-SignFilter:"<PATTERN>"]
   [-SignTimeout:<SECONDS>] [-ContinueOnSignTimeout:<True|False>]
   [-Log:<True|False>] [-LogFile:"<FILENAME>"] [-LogOverwrite:<True|False>]
+  [-Verbose:<True|False>]
 ```
 
 Examples:
@@ -25,9 +26,10 @@ IsExeSigned.exe -Files:"C:\Build\*.exe;*.dll" -VerifySigners:"*MyCompanyLtd*"
 IsExeSigned.exe -Files:"C:\Build\*.exe;*.dll" -SignCommand:"C:\SignFile.bat %filename%"
 IsExeSigned.exe -Files:"C:\Build\*.dll" -SignCommand:"C:\SignFile.bat %filename%" -SignFilter:"*\DllFiles\fb*.dll;*\Redistributables\*"
 IsExeSigned.exe -Files:"C:\Build\*.exe;*.dll" -VerifySigners:"*MyCompanyLtd*" -LogFile:"C:\Build\Signatures.xml"
+IsExeSigned.exe -Files:"C:\Build\*.exe;*.dll" -Verify:True -FailMode:FailOnError -LogFile:"C:\Build\Signatures.xml"
 ```
 
-Output, one line per file:
+Output, with `Verbose` (the default) first the settings, then one line per file:
 
 - `-` signed (and signature valid, when verified)  
 - `*` not signed  
@@ -36,7 +38,7 @@ Output, one line per file:
 
 ## Parameters
 
-The parameters were renamed in 2026-10. The old names `FileName` and `ErrorIfNotSigned` still work, as aliases of `Files` and `FailIfUnsigned`.
+The parameters were renamed in 2026-10: `FileName` is now `Files`, and `ErrorIfNotSigned` is replaced by `FailMode`.
 
 - **Files**  
   - Mandatory  
@@ -49,9 +51,12 @@ The parameters were renamed in 2026-10. The old names `FileName` and `ErrorIfNot
     - `<"foo"|"bar">` one of the listed strings  
   - All wildcard characters are ones Windows does not allow in file names, so any valid file name is taken as a plain file name, e.g. `C:\Build\App[x64] #2.exe`  
 
-- **FailIfUnsigned**  
-  - Optional (`True` or `False`), default `True`  
-  - If `True` and any checked file is not signed → ExitCode = `1`  
+- **FailMode**  
+  - Optional (`Auto`, `FailOnError` or `LogOnly`), default `Auto`  
+  - `Auto`: `LogOnly` if a log is written (`Log` or `LogFile` given), otherwise `FailOnError`  
+  - `FailOnError`: any error found while checking sets its exit code: a file not signed → `1`, a verified signature not valid → `5`, sign command timeout → `7`, no files match the pattern → `3`  
+  - `LogOnly`: the errors are only reported, the exit code stays `0`. On the console the file's line has `ERROR:`, and in the log the test case is an error (`label="Error"`), so the log is where the failures show  
+  - Command line errors (exit codes `2`, `3` and `6` found before checking any file) and exit code `4` are set in every mode  
 
 - **Recursive**  
   - Optional (`True` or `False`), default `True`  
@@ -106,12 +111,15 @@ The parameters were renamed in 2026-10. The old names `FileName` and `ErrorIfNot
   - Optional (`True` or `False`), default `True`  
   - `False` and the log file exists → ExitCode = `3`, checked before anything else is done  
 
+- **Verbose**  
+  - Optional (`True` or `False`), default `True`  
+  - Writes the effective settings before anything else is done, also before the parameter values are checked: the defaults filled in, `FailMode` `Auto` resolved (e.g. `LogOnly (Auto)`), `Verify` `True` when `VerifySigners` is given, and the full path of the log file  
+
 The log has one test case per checked file, named by its full path:
 
 - passed: signed (and signature valid, when verified); the message tells the signer  
-- failed: signature not valid, or not signed with `FailIfUnsigned` `True`  
-- warning: not signed with `FailIfUnsigned` `False`  
-- error: sign command timeout that stopped the run, or no files match the pattern  
+- failed: signature not valid, or not signed, with `FailMode` `FailOnError`  
+- error: signature not valid, or not signed, with `FailMode` `LogOnly` (or `Auto`, as a log is written); sign command timeout that stopped the run, or no files match the pattern  
 
 The log is written also when the run stops early (sign command timeout); not when the command line itself is invalid.  
 
@@ -119,8 +127,8 @@ The log is written also when the run stops early (sign command timeout); not whe
 
 | Code | Meaning |
 |------|---------|
-| `0` | All files signed (or `FailIfUnsigned` is `False`), and all verified signatures are valid |
-| `1` | At least one file is not signed and `FailIfUnsigned` is `True` (takes precedence over `5`) |
+| `0` | All files signed, and all verified signatures are valid; or `FailMode` is `LogOnly` (or `Auto` with a log) and the command line is valid |
+| `1` | At least one file is not signed (takes precedence over `5`) |
 | `2` | Invalid command line: `Files` missing, unknown parameter, or a parameter value is invalid (e.g. `SignTimeout` out of range) |
 | `3` | File not found, pattern without a directory, directory not found, no files match the pattern, `SignFilter` without `SignCommand`, log file directory not found, or log file exists and `LogOverwrite` is `False` |
 | `4` | Something unexpected happened (like an unhandled exception) |

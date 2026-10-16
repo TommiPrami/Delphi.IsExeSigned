@@ -1,6 +1,7 @@
 ﻿unit CIESUnit.Integration.Parameters.Tests;
 
-// IsExeSigned.exe run as a separate process: invalid command lines and their exit codes.
+// IsExeSigned.exe run as a separate process: invalid command lines and their exit codes, and the settings Verbose
+// writes.
 
 interface
 
@@ -18,6 +19,7 @@ type
 
     [Test] procedure NoParametersShowsUsage;
     [Test] procedure InvalidBooleanValueShowsUsage;
+    [Test] procedure InvalidFailModeShowsUsage;
     [Test] procedure MissingFile;
     [Test] procedure PatternWithoutDirectory;
     [Test] procedure MissingDirectory;
@@ -28,14 +30,28 @@ type
     [TestCase('Over one day', '86401')]
     procedure SignTimeoutOutOfRange(const ASeconds: string);
     [Test] procedure SignCommandWithoutPlaceholder;
-    // FileName and ErrorIfNotSigned, the names before 2026-10, are aliases of Files and FailIfUnsigned
-    [Test] procedure OldParameterNamesStillWork;
+    // Command line errors are not results of the run, they set the exit code also with LogOnly
+    [Test] procedure ParameterErrorWithLogOnly;
+
+    [Test] procedure VerboseWritesSettingsByDefault;
+    [Test] procedure VerboseFalseWritesNoSettings;
+    [Test] procedure VerboseShowsAutoFailModeWithLog;
+    [Test] procedure VerboseShowsExplicitFailMode;
+    [Test] procedure VerboseShowsImpliedSettings;
+    // Written before the parameter values are checked
+    [Test] procedure VerboseWritesSettingsWhenValueIsNotValid;
   end;
 
 implementation
 
 uses
-  CIESUnit.Consts;
+  System.SysUtils, CIESUnit.Consts;
+
+// Line of one setting, as Verbose writes it
+function SettingLine(const AName, AValue: string): string;
+begin
+  Result := '  ' + AName.PadRight(21) + ' : ' + AValue;
+end;
 
 { TIsExeSignedParameterTests }
 
@@ -51,7 +67,15 @@ end;
 
 procedure TIsExeSignedParameterTests.InvalidBooleanValueShowsUsage;
 begin
-  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Signed.exe', tfkSigned), '-FailIfUnsigned:Maybe']);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Signed.exe', tfkSigned), '-Recursive:Maybe']);
+
+  Assert.AreEqual(EXIT_CODE_PARAM_NOT_FOUND, LResult.ExitCode, LResult.Output);
+  Assert.Contains(LResult.Output, 'Usage');
+end;
+
+procedure TIsExeSignedParameterTests.InvalidFailModeShowsUsage;
+begin
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Signed.exe', tfkSigned), '-FailMode:Maybe']);
 
   Assert.AreEqual(EXIT_CODE_PARAM_NOT_FOUND, LResult.ExitCode, LResult.Output);
   Assert.Contains(LResult.Output, 'Usage');
@@ -91,12 +115,11 @@ begin
   Assert.Contains(LResult.Output, 'Usage');
 end;
 
-procedure TIsExeSignedParameterTests.OldParameterNamesStillWork;
+procedure TIsExeSignedParameterTests.ParameterErrorWithLogOnly;
 begin
-  var LResult := RunIsExeSigned(['-FileName:' + FFiles.Add('Unsigned.exe', tfkUnsigned), '-ErrorIfNotSigned:False']);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.PathOf('Missing.exe'), '-FailMode:LogOnly']);
 
-  Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
-  Assert.Contains(LResult.Output, 'is NOT Signed');
+  Assert.AreEqual(EXIT_CODE_PARAM_VALUE_ERROR, LResult.ExitCode, LResult.Output);
 end;
 
 procedure TIsExeSignedParameterTests.PatternWithoutDirectory;
@@ -131,6 +154,70 @@ begin
   // CLPRange, so it is a command line parsing error, like an invalid Boolean value
   Assert.AreEqual(EXIT_CODE_PARAM_NOT_FOUND, LResult.ExitCode, LResult.Output);
   Assert.AreEqual('', FFiles.SignToolLog, 'Sign tool was run');
+end;
+
+procedure TIsExeSignedParameterTests.VerboseFalseWritesNoSettings;
+begin
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Signed.exe', tfkSigned), '-Verbose:False']);
+
+  Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
+  Assert.DoesNotContain(LResult.Output, 'Settings:');
+end;
+
+procedure TIsExeSignedParameterTests.VerboseShowsAutoFailModeWithLog;
+begin
+  var LLogFileName := FFiles.PathOf('Result.xml');
+
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Signed.exe', tfkSigned), '-LogFile:' + LLogFileName]);
+
+  Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
+  Assert.Contains(LResult.Output, SettingLine('FailMode', 'LogOnly (Auto)'));
+  Assert.Contains(LResult.Output, SettingLine('Log', 'True'));
+  Assert.Contains(LResult.Output, SettingLine('LogFile', '"' + LLogFileName + '"'));
+end;
+
+procedure TIsExeSignedParameterTests.VerboseShowsExplicitFailMode;
+begin
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Signed.exe', tfkSigned), '-FailMode:FailOnError',
+    '-LogFile:' + FFiles.PathOf('Result.xml')]);
+
+  Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
+  Assert.Contains(LResult.Output, SettingLine('FailMode', 'FailOnError'));
+  Assert.DoesNotContain(LResult.Output, '(Auto)');
+end;
+
+procedure TIsExeSignedParameterTests.VerboseShowsImpliedSettings;
+begin
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Signed.exe', tfkSigned), '-VerifySigners:*']);
+
+  Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
+  Assert.Contains(LResult.Output, SettingLine('Verify', 'True'));
+  Assert.Contains(LResult.Output, SettingLine('VerifySigners', '"*"'));
+end;
+
+procedure TIsExeSignedParameterTests.VerboseWritesSettingsByDefault;
+begin
+  var LFileName := FFiles.Add('Signed.exe', tfkSigned);
+
+  var LResult := RunIsExeSigned(['-Files:' + LFileName]);
+
+  Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
+  Assert.StartsWith('Settings:', LResult.Output);
+  Assert.Contains(LResult.Output, SettingLine('Files', '"' + LFileName + '"'));
+  Assert.Contains(LResult.Output, SettingLine('FailMode', 'FailOnError (Auto)'));
+  Assert.Contains(LResult.Output, SettingLine('Verify', 'False'));
+  Assert.Contains(LResult.Output, SettingLine('SignTimeout', '60'));
+  Assert.Contains(LResult.Output, SettingLine('Log', 'False'));
+  Assert.Contains(LResult.Output, SettingLine('LogFile', '""'));
+end;
+
+procedure TIsExeSignedParameterTests.VerboseWritesSettingsWhenValueIsNotValid;
+begin
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.PathOf('Missing.exe')]);
+
+  Assert.AreEqual(EXIT_CODE_PARAM_VALUE_ERROR, LResult.ExitCode, LResult.Output);
+  Assert.StartsWith('Settings:', LResult.Output);
+  Assert.Contains(LResult.Output, 'does not exist');
 end;
 
 end.

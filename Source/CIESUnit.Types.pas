@@ -6,10 +6,14 @@ uses
   Winapi.Windows, System.Classes, Delphi.CommandLineParser, CIESUnit.Consts;
 
 type
+  // Auto: LogOnly if a log is written, otherwise FailOnError. FailOnError: any error sets its exit code. LogOnly: errors
+  // are only reported, as errors on the console and in the log, the exit code is not set
+  TFailMode = (Auto, FailOnError, LogOnly);
+
   TCommandLineParameters = class(TObject)
   strict private
     FFiles: string;
-    FFailIfUnsigned: Boolean;
+    FFailMode: TFailMode;
     FRecursive: Boolean;
     FVerify: Boolean;
     FVerifySigners: string;
@@ -20,18 +24,21 @@ type
     FLog: Boolean;
     FLogFile: string;
     FLogOverwrite: Boolean;
+    FVerbose: Boolean;
   public
     // Full path of the NUnit XML log file to write, '' when no log is written: LogFile if given, otherwise
     // LOG_FILE_NAME_DEFAULT in the application folder if Log is True
     function GetLogFileName: string;
-
-    // The second long names are the names before 2026-10, kept so existing scripts keep working
+    // FailMode with Auto resolved, never Auto
+    function GetEffectiveFailMode: TFailMode;
+    // Verify, or VerifySigners given
+    function GetEffectiveVerify: Boolean;
 
     [CLPLongName('Files'),  CLPDescription('File, or directory and patterns separated by ";"', '<file|dir\pattern[;pattern]>'), CLPDefault(''), CLPRequired]
     property Files: string read FFiles write FFiles;
 
-    [CLPLongName('FailIfUnsigned'), CLPDescription('Return exit code [1] if a file is not signed', '<True|False>'), CLPDefault('True')]
-    property FailIfUnsigned: Boolean read FFailIfUnsigned write FFailIfUnsigned;
+    [CLPLongName('FailMode'), CLPDescription('Auto: LogOnly if a log is written, otherwise FailOnError. FailOnError: return an exit code on any error, e.g. [1] if a file is not signed. LogOnly: only report the errors, as errors in the log too, exit code [0]', '<Auto|FailOnError|LogOnly>'), CLPDefault('Auto')]
+    property FailMode: TFailMode read FFailMode write FFailMode;
 
     [CLPLongName('Recursive'), CLPDescription('Search the sub directories too, when Files has patterns', '<True|False>'), CLPDefault('True')]
     property Recursive: Boolean read FRecursive write FRecursive;
@@ -62,6 +69,9 @@ type
 
     [CLPLongName('LogOverwrite'), CLPDescription('Overwrite an existing log file, if False and the log file exists, return exit code [3]', '<True|False>'), CLPDefault('True')]
     property LogOverwrite: Boolean read FLogOverwrite write FLogOverwrite;
+
+    [CLPLongName('Verbose'), CLPDescription('Write the effective settings before anything else is done', '<True|False>'), CLPDefault('True')]
+    property Verbose: Boolean read FVerbose write FVerbose;
   end;
 
 {
@@ -170,6 +180,21 @@ uses
   System.SysUtils;
 
 { TCommandLineParameters }
+
+function TCommandLineParameters.GetEffectiveFailMode: TFailMode;
+begin
+  if FFailMode <> Auto then
+    Result := FFailMode
+  else if not GetLogFileName.IsEmpty then
+    Result := LogOnly
+  else
+    Result := FailOnError;
+end;
+
+function TCommandLineParameters.GetEffectiveVerify: Boolean;
+begin
+  Result := FVerify or not FVerifySigners.IsEmpty;
+end;
 
 function TCommandLineParameters.GetLogFileName: string;
 begin

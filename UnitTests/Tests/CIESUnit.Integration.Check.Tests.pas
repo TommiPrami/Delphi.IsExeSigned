@@ -18,7 +18,7 @@ type
 
     [Test] procedure SignedFile;
     [Test] procedure UnsignedFile;
-    [Test] procedure UnsignedFileWithoutFailIfUnsigned;
+    [Test] procedure UnsignedFileWithLogOnly;
     [Test] procedure FileNameWithBracketsAndHashIsNotAPattern;
     [Test] procedure PatternIsCaseInsensitive;
     [Test] procedure PatternWithoutRecurseSkipsSubDirs;
@@ -26,6 +26,7 @@ type
 
     [Test] procedure TamperedFileIsNotCheckedByDefault;
     [Test] procedure TamperedFileWithVerify;
+    [Test] procedure TamperedFileWithVerifyAndLogOnly;
     [Test] procedure SignerFilterNotMatchingSkipsCheck;
     [Test] procedure SignerFilterMatchingChecks;
     [Test] procedure UnsignedTakesPrecedenceOverInvalidSignature;
@@ -146,6 +147,16 @@ begin
   Assert.Contains(LResult.Output, '1 with invalid signature');
 end;
 
+procedure TIsExeSignedCheckTests.TamperedFileWithVerifyAndLogOnly;
+begin
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Tampered.exe', tfkTampered), '-Verify:True',
+    '-FailMode:LogOnly']);
+
+  Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
+  Assert.Contains(LResult.Output, '! ERROR: "' + FFiles.PathOf('Tampered.exe'));
+  Assert.Contains(LResult.Output, 'signature is NOT valid');
+end;
+
 procedure TIsExeSignedCheckTests.UnsignedFile;
 begin
   var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Unsigned.exe', tfkUnsigned)]);
@@ -154,11 +165,12 @@ begin
   Assert.Contains(LResult.Output, 'is NOT Signed');
 end;
 
-procedure TIsExeSignedCheckTests.UnsignedFileWithoutFailIfUnsigned;
+procedure TIsExeSignedCheckTests.UnsignedFileWithLogOnly;
 begin
-  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Unsigned.exe', tfkUnsigned), '-FailIfUnsigned:False']);
+  var LResult := RunIsExeSigned(['-Files:' + FFiles.Add('Unsigned.exe', tfkUnsigned), '-FailMode:LogOnly']);
 
   Assert.AreEqual(0, LResult.ExitCode, LResult.Output);
+  Assert.Contains(LResult.Output, '* ERROR: "' + FFiles.PathOf('Unsigned.exe') + '" - is NOT Signed');
 end;
 
 procedure TIsExeSignedCheckTests.UnsignedTakesPrecedenceOverInvalidSignature;

@@ -21,6 +21,11 @@ type
     [Test] procedure GetLogFileNameDoesNotChangeLogFile;
     [Test] procedure GetLogFileNameExpandsRelativeLogFile;
     [Test] procedure LogFileIsUsedWithoutLog;
+    [Test] procedure AutoFailModeWithoutLogIsFailOnError;
+    [Test] procedure AutoFailModeWithLogIsLogOnly;
+    [Test] procedure AutoFailModeWithLogFileIsLogOnly;
+    [Test] procedure ExplicitFailModeIsKept;
+    [Test] procedure VerifySignersImpliesVerify;
   end;
 
 implementation
@@ -38,6 +43,42 @@ end;
 procedure TCommandLineParametersTests.TearDown;
 begin
   FParameters.Free;
+end;
+
+procedure TCommandLineParametersTests.AutoFailModeWithLogFileIsLogOnly;
+begin
+  FParameters.FailMode := Auto;
+  FParameters.LogFile := 'C:\Logs\Result.xml';
+
+  Assert.AreEqual(Ord(LogOnly), Ord(FParameters.GetEffectiveFailMode));
+end;
+
+procedure TCommandLineParametersTests.AutoFailModeWithLogIsLogOnly;
+begin
+  FParameters.FailMode := Auto;
+  FParameters.Log := True;
+
+  Assert.AreEqual(Ord(LogOnly), Ord(FParameters.GetEffectiveFailMode));
+end;
+
+procedure TCommandLineParametersTests.AutoFailModeWithoutLogIsFailOnError;
+begin
+  FParameters.FailMode := Auto;
+
+  Assert.AreEqual(Ord(FailOnError), Ord(FParameters.GetEffectiveFailMode));
+end;
+
+procedure TCommandLineParametersTests.ExplicitFailModeIsKept;
+begin
+  FParameters.FailMode := FailOnError;
+  FParameters.Log := True;
+
+  Assert.AreEqual(Ord(FailOnError), Ord(FParameters.GetEffectiveFailMode));
+
+  FParameters.FailMode := LogOnly;
+  FParameters.Log := False;
+
+  Assert.AreEqual(Ord(LogOnly), Ord(FParameters.GetEffectiveFailMode));
 end;
 
 procedure TCommandLineParametersTests.GetLogFileNameDefaultsToApplicationFolder;
@@ -81,6 +122,20 @@ begin
   FParameters.LogFile := 'C:\Logs\Result.xml';
 
   Assert.AreEqual('C:\Logs\Result.xml', FParameters.GetLogFileName);
+end;
+
+procedure TCommandLineParametersTests.VerifySignersImpliesVerify;
+begin
+  Assert.IsFalse(FParameters.GetEffectiveVerify);
+
+  FParameters.VerifySigners := '*MyCompany*';
+
+  Assert.IsTrue(FParameters.GetEffectiveVerify);
+
+  FParameters.VerifySigners := '';
+  FParameters.Verify := True;
+
+  Assert.IsTrue(FParameters.GetEffectiveVerify);
 end;
 
 end.
