@@ -68,11 +68,13 @@ begin
       for LCaseIndex := 1 to ATestCaseCount do
         if LCaseIndex mod 10 = 0 then
           LTestSuite.AddTestCase('Projects\Application\Forms\ApplicationForm.Unit' + LCaseIndex.ToString + '.pas', ntrFailed,
-            0.0123, 'Line ' + LCaseIndex.ToString + ': disallowed identifier "Application.ProcessMessages" & <more>',
-            'at TQualityControl.CheckFile' + sLineBreak + 'at TQualityControl.Run')
+            'Line ' + LCaseIndex.ToString + ': disallowed identifier "Application.ProcessMessages" & <more>',
+            'at TQualityControl.CheckFile' + sLineBreak + 'at TQualityControl.Run').EndTestCase
         else
-          LTestSuite.AddTestCase('Projects\Application\Forms\ApplicationForm.Unit' + LCaseIndex.ToString + '.pas', ntrPassed,
-            0.0012);
+          LTestSuite.AddTestCase('Projects\Application\Forms\ApplicationForm.Unit' + LCaseIndex.ToString + '.pas',
+            ntrPassed).EndTestCase;
+
+      LTestSuite.EndTestSuite;
     end;
 
     LAddStopwatch.Stop;
@@ -86,7 +88,7 @@ begin
 
   Assert.IsTrue(FileExists(LFileName), 'file');
 
-  LMessage := Format('%d test cases: AddTestCase %s ms, SaveToFile %s ms, %s MB, %s test cases/s', [LTotalCount,
+  LMessage := Format('%d test cases: AddTestCase and EndTestCase %s ms, SaveToFile %s ms, %s MB, %s test cases/s', [LTotalCount,
     FormatFloat('0.000', LAddStopwatch.Elapsed.TotalMilliseconds),
     FormatFloat('0.000', LSaveStopwatch.Elapsed.TotalMilliseconds),
     FormatFloat('0.0', TFile.GetSize(LFileName) / (1024 * 1024)),

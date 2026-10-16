@@ -14,6 +14,7 @@ type
     FDirectory: string;
     FDocument: IXMLDOMDocument2;
     FFileName: string;
+    function FloatValue(const AXPath: string): Double;
     function NodeCount(const AXPath: string): Integer;
     function Value(const AXPath: string): string;
     procedure CheckCounts(const AXPath: string; const ATotal, APassed, AFailed, AWarnings, AInconclusive, ASkipped,
@@ -39,8 +40,17 @@ type
     [Test] procedure SpecialCharactersRoundTrip;
     [Test] procedure InvalidXmlCharactersAreReplaced;
     [Test] procedure FileIsUtf8WithoutBomAndIndented;
-    [Test] procedure DurationAndAssertsAreWritten;
+    [Test] procedure TestCaseIsTimedWithStopwatch;
+    [Test] procedure TestSuiteIsTimedWithStopwatch;
+    [Test] procedure NotBegunTestCaseIsWrittenAtAddTime;
+    [Test] procedure NotBegunTestSuiteSpansItsTestCases;
+    [Test] procedure BeginAndEndMustBeCalledOnceInOrder;
+    [Test] procedure SaveToFileRaisesWhenTestCaseNotEnded;
+    [Test] procedure SaveToFileRaisesWhenTestSuiteNotEnded;
     [Test] procedure TimesIgnoreFormatSettings;
+    [Test] procedure DefaultOptionsWriteEverything;
+    [Test] procedure OptionsLeaveOutTimes;
+    [Test] procedure EmptyOptionsWriteMinimalFile;
     [Test] procedure IdsAreUniqueInDocumentOrder;
     [Test] procedure SaveToFileRaisesWhenFileExists;
     [Test] procedure SaveToFileOverwritesWhenAllowed;
@@ -55,11 +65,21 @@ uses
 
 const
   ASSEMBLY_PATH = '/test-run/test-suite';
+  DURATION_PATTERN = '^\d+\.\d{6}$';
   FIXTURE_PATH = ASSEMBLY_PATH + '/test-suite';
   OLD_CONTENT = 'old content';
+  // Sleep can return a bit early and Now changes only on system timer ticks, so the checks allow some slack
+  SLEEP_MS = 50;
+  MIN_SLEPT_SECONDS = 0.045;
+  MIN_SLEPT_SECONDS_BY_NOW = 0.030;
   TIME_PATTERN = '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$';
 
 { TNUnitLoggerTests }
+
+function TNUnitLoggerTests.FloatValue(const AXPath: string): Double;
+begin
+  Result := StrToFloat(Value(AXPath), TFormatSettings.Invariant);
+end;
 
 function TNUnitLoggerTests.NodeCount(const AXPath: string): Integer;
 begin
@@ -200,7 +220,7 @@ var
 begin
   LLogger := TNUnitLogger.Create;
   try
-    LLogger.AddTestSuite('DisallowedList').AddTestCase('Common\Unit1.pas', ntrPassed);
+    LLogger.AddTestSuite('DisallowedList', False).AddTestCase('Common\Unit1.pas', ntrPassed).EndTestCase;
 
     // Set after adding, the names are resolved when the file is written
     LLogger.Name := 'QualityControl';
@@ -238,16 +258,16 @@ var
 begin
   LLogger := TNUnitLogger.Create;
   try
-    LTestSuite := LLogger.AddTestSuite('First');
-    LTestSuite.AddTestCase('Passed', ntrPassed, 0.0, '', '', 2);
-    LTestSuite.AddTestCase('Failed', ntrFailed);
-    LTestSuite.AddTestCase('Error', ntrError);
-    LTestSuite.AddTestCase('Skipped', ntrSkipped);
+    LTestSuite := LLogger.AddTestSuite('First', False);
+    LTestSuite.AddTestCase('Passed', ntrPassed, '', '', 2).EndTestCase;
+    LTestSuite.AddTestCase('Failed', ntrFailed).EndTestCase;
+    LTestSuite.AddTestCase('Error', ntrError).EndTestCase;
+    LTestSuite.AddTestCase('Skipped', ntrSkipped).EndTestCase;
 
-    LTestSuite := LLogger.AddTestSuite('Second');
-    LTestSuite.AddTestCase('Warning', ntrWarning);
-    LTestSuite.AddTestCase('Inconclusive', ntrInconclusive);
-    LTestSuite.AddTestCase('Passed', ntrPassed, 0.0, '', '', 3);
+    LTestSuite := LLogger.AddTestSuite('Second', False);
+    LTestSuite.AddTestCase('Warning', ntrWarning).EndTestCase;
+    LTestSuite.AddTestCase('Inconclusive', ntrInconclusive).EndTestCase;
+    LTestSuite.AddTestCase('Passed', ntrPassed, '', '', 3).EndTestCase;
 
     SaveAndLoad(LLogger);
   finally
@@ -271,10 +291,10 @@ var
 begin
   LLogger := TNUnitLogger.Create;
   try
-    LTestSuite := LLogger.AddTestSuite('Results');
+    LTestSuite := LLogger.AddTestSuite('Results', False);
 
     for LTestResult := Low(TNUnitTestResult) to High(TNUnitTestResult) do
-      LTestSuite.AddTestCase('Case' + Ord(LTestResult).ToString, LTestResult);
+      LTestSuite.AddTestCase('Case' + Ord(LTestResult).ToString, LTestResult).EndTestCase;
 
     SaveAndLoad(LLogger);
   finally
@@ -301,33 +321,33 @@ var
 begin
   LLogger := TNUnitLogger.Create;
   try
-    LTestSuite := LLogger.AddTestSuite('FailedAndPassed');
-    LTestSuite.AddTestCase('A', ntrPassed);
-    LTestSuite.AddTestCase('B', ntrFailed);
+    LTestSuite := LLogger.AddTestSuite('FailedAndPassed', False);
+    LTestSuite.AddTestCase('A', ntrPassed).EndTestCase;
+    LTestSuite.AddTestCase('B', ntrFailed).EndTestCase;
 
-    LLogger.AddTestSuite('ErrorOnly').AddTestCase('A', ntrError);
+    LLogger.AddTestSuite('ErrorOnly', False).AddTestCase('A', ntrError).EndTestCase;
 
-    LTestSuite := LLogger.AddTestSuite('WarningAndPassed');
-    LTestSuite.AddTestCase('A', ntrWarning);
-    LTestSuite.AddTestCase('B', ntrPassed);
+    LTestSuite := LLogger.AddTestSuite('WarningAndPassed', False);
+    LTestSuite.AddTestCase('A', ntrWarning).EndTestCase;
+    LTestSuite.AddTestCase('B', ntrPassed).EndTestCase;
 
-    LTestSuite := LLogger.AddTestSuite('WarningAndFailed');
-    LTestSuite.AddTestCase('A', ntrWarning);
-    LTestSuite.AddTestCase('B', ntrFailed);
+    LTestSuite := LLogger.AddTestSuite('WarningAndFailed', False);
+    LTestSuite.AddTestCase('A', ntrWarning).EndTestCase;
+    LTestSuite.AddTestCase('B', ntrFailed).EndTestCase;
 
-    LTestSuite := LLogger.AddTestSuite('PassedAndSkipped');
-    LTestSuite.AddTestCase('A', ntrPassed);
-    LTestSuite.AddTestCase('B', ntrSkipped);
+    LTestSuite := LLogger.AddTestSuite('PassedAndSkipped', False);
+    LTestSuite.AddTestCase('A', ntrPassed).EndTestCase;
+    LTestSuite.AddTestCase('B', ntrSkipped).EndTestCase;
 
-    LLogger.AddTestSuite('Empty');
+    LLogger.AddTestSuite('Empty', False);
 
-    LTestSuite := LLogger.AddTestSuite('InconclusiveAndSkipped');
-    LTestSuite.AddTestCase('A', ntrInconclusive);
-    LTestSuite.AddTestCase('B', ntrSkipped);
+    LTestSuite := LLogger.AddTestSuite('InconclusiveAndSkipped', False);
+    LTestSuite.AddTestCase('A', ntrInconclusive).EndTestCase;
+    LTestSuite.AddTestCase('B', ntrSkipped).EndTestCase;
 
-    LTestSuite := LLogger.AddTestSuite('SkippedOnly');
-    LTestSuite.AddTestCase('A', ntrSkipped);
-    LTestSuite.AddTestCase('B', ntrSkipped);
+    LTestSuite := LLogger.AddTestSuite('SkippedOnly', False);
+    LTestSuite.AddTestCase('A', ntrSkipped).EndTestCase;
+    LTestSuite.AddTestCase('B', ntrSkipped).EndTestCase;
 
     SaveAndLoad(LLogger);
   finally
@@ -354,8 +374,8 @@ var
 begin
   LLogger := TNUnitLogger.Create;
   try
-    LLogger.AddTestSuite('Failing').AddTestCase('A', ntrFailed);
-    LLogger.AddTestSuite('Passing').AddTestCase('A', ntrPassed);
+    LLogger.AddTestSuite('Failing', False).AddTestCase('A', ntrFailed).EndTestCase;
+    LLogger.AddTestSuite('Passing', False).AddTestCase('A', ntrPassed).EndTestCase;
 
     SaveAndLoad(LLogger);
   finally
@@ -378,10 +398,10 @@ var
 begin
   LLogger := TNUnitLogger.Create;
   try
-    LTestSuite := LLogger.AddTestSuite('Failures');
-    LTestSuite.AddTestCase('WithStackTrace', ntrFailed, 0.0, 'Expected 1, got 2', 'at TFoo.Bar');
-    LTestSuite.AddTestCase('WithoutMessage', ntrFailed);
-    LTestSuite.AddTestCase('Error', ntrError, 0.0, 'Access violation');
+    LTestSuite := LLogger.AddTestSuite('Failures', False);
+    LTestSuite.AddTestCase('WithStackTrace', ntrFailed, 'Expected 1, got 2', 'at TFoo.Bar').EndTestCase;
+    LTestSuite.AddTestCase('WithoutMessage', ntrFailed).EndTestCase;
+    LTestSuite.AddTestCase('Error', ntrError, 'Access violation').EndTestCase;
 
     SaveAndLoad(LLogger);
   finally
@@ -407,12 +427,12 @@ var
 begin
   LLogger := TNUnitLogger.Create;
   try
-    LTestSuite := LLogger.AddTestSuite('Reasons');
-    LTestSuite.AddTestCase('SkippedWithMessage', ntrSkipped, 0.0, 'Not applicable');
-    LTestSuite.AddTestCase('PassedWithMessage', ntrPassed, 0.0, 'All good');
-    LTestSuite.AddTestCase('PassedWithoutMessage', ntrPassed);
-    LTestSuite.AddTestCase('SkippedWithStackTraceOnly', ntrSkipped, 0.0, '', 'at TFoo.Bar');
-    LTestSuite.AddTestCase('InconclusiveWithMessage', ntrInconclusive, 0.0, 'Could not decide');
+    LTestSuite := LLogger.AddTestSuite('Reasons', False);
+    LTestSuite.AddTestCase('SkippedWithMessage', ntrSkipped, 'Not applicable').EndTestCase;
+    LTestSuite.AddTestCase('PassedWithMessage', ntrPassed, 'All good').EndTestCase;
+    LTestSuite.AddTestCase('PassedWithoutMessage', ntrPassed).EndTestCase;
+    LTestSuite.AddTestCase('SkippedWithStackTraceOnly', ntrSkipped, '', 'at TFoo.Bar').EndTestCase;
+    LTestSuite.AddTestCase('InconclusiveWithMessage', ntrInconclusive, 'Could not decide').EndTestCase;
 
     SaveAndLoad(LLogger);
   finally
@@ -442,7 +462,7 @@ begin
   LLogger := TNUnitLogger.Create;
   try
     LLogger.CommandLine := '"C:\A & B\Tool.exe" <in> ' + #$E4;
-    LLogger.AddTestSuite('Suite & <Co>').AddTestCase(NAME_TEXT, ntrFailed, 0.0, MESSAGE_TEXT, MESSAGE_TEXT);
+    LLogger.AddTestSuite('Suite & <Co>', False).AddTestCase(NAME_TEXT, ntrFailed, MESSAGE_TEXT, MESSAGE_TEXT).EndTestCase;
 
     SaveAndLoad(LLogger);
   finally
@@ -463,7 +483,7 @@ var
 begin
   LLogger := TNUnitLogger.Create;
   try
-    LLogger.AddTestSuite('Suite').AddTestCase('Bell'#7'Name', ntrSkipped, 0.0, 'Null'#0'Escape'#27'Message'#$FFFF);
+    LLogger.AddTestSuite('Suite', False).AddTestCase('Bell'#7'Name', ntrSkipped, 'Null'#0'Escape'#27'Message'#$FFFF).EndTestCase;
 
     SaveAndLoad(LLogger);
   finally
@@ -483,7 +503,7 @@ var
 begin
   LLogger := TNUnitLogger.Create;
   try
-    LLogger.AddTestSuite('Suite').AddTestCase(#$E4'.pas', ntrPassed);
+    LLogger.AddTestSuite('Suite', False).AddTestCase(#$E4'.pas', ntrPassed).EndTestCase;
 
     SaveAndLoad(LLogger);
   finally
@@ -509,7 +529,44 @@ begin
   Assert.IsTrue(LLines[6].EndsWith(' />'), 'test-case without children is self-closing');
 end;
 
-procedure TNUnitLoggerTests.DurationAndAssertsAreWritten;
+procedure TNUnitLoggerTests.TestCaseIsTimedWithStopwatch;
+var
+  LDuration: Double;
+  LLogger: TNUnitLogger;
+  LTestCase: TNUnitTestCase;
+begin
+  LLogger := TNUnitLogger.Create;
+  try
+    LTestCase := LLogger.AddTestSuite('Timings', False).AddTestCase('Slow', ntrPassed, '', '', 7);
+
+    Assert.IsTrue(LTestCase.StartTime <> 0.0, 'StartTime set by AddTestCase');
+    Assert.IsTrue(LTestCase.EndTime = 0.0, 'EndTime before EndTestCase');
+    Assert.IsTrue(LTestCase.IsRunning, 'running');
+
+    Sleep(SLEEP_MS);
+    LTestCase.EndTestCase;
+
+    Assert.IsFalse(LTestCase.IsRunning, 'ended');
+    Assert.IsTrue(LTestCase.EndTime >= LTestCase.StartTime, 'EndTime');
+    Assert.IsTrue(LTestCase.Duration >= MIN_SLEPT_SECONDS, 'Duration ' + LTestCase.Duration.ToString);
+
+    LDuration := LTestCase.Duration;
+
+    SaveAndLoad(LLogger);
+  finally
+    LLogger.Free;
+  end;
+
+  // Written with the stopwatch precision, not rounded to milliseconds
+  Assert.AreEqual(FormatFloat('0.000000', LDuration, TFormatSettings.Invariant), Value(FIXTURE_PATH + '/test-case/@duration'),
+    'duration');
+  Assert.AreEqual('7', Value(FIXTURE_PATH + '/test-case/@asserts'), 'asserts');
+
+  Assert.IsTrue(FloatValue('/test-run/@duration') >= LDuration, 'run duration');
+  Assert.IsTrue(FloatValue(ASSEMBLY_PATH + '/@duration') >= LDuration, 'Assembly duration');
+end;
+
+procedure TNUnitLoggerTests.TestSuiteIsTimedWithStopwatch;
 var
   LDuration: Double;
   LLogger: TNUnitLogger;
@@ -518,33 +575,165 @@ begin
   LLogger := TNUnitLogger.Create;
   try
     LTestSuite := LLogger.AddTestSuite('Timings');
-    LTestSuite.AddTestCase('Default', ntrPassed);
-    LTestSuite.AddTestCase('OneAndHalf', ntrPassed, 1.5, '', '', 7);
-    LTestSuite.AddTestCase('Tiny', ntrPassed, 0.0004);
+
+    Assert.IsTrue(LTestSuite.StartTime <> 0.0, 'StartTime set by AddTestSuite');
+    Assert.IsTrue(LTestSuite.IsRunning, 'running');
+
+    // The test suite duration is its own, not the sum of its test cases
+    LTestSuite.AddTestCase('Fast', ntrPassed).EndTestCase;
+    Sleep(SLEEP_MS);
+    LTestSuite.EndTestSuite;
+
+    Assert.IsTrue(LTestSuite.Duration >= MIN_SLEPT_SECONDS, 'Duration ' + LTestSuite.Duration.ToString);
+
+    LDuration := LTestSuite.Duration;
 
     SaveAndLoad(LLogger);
   finally
     LLogger.Free;
   end;
 
-  Assert.AreEqual('0.000', Value(FIXTURE_PATH + '/test-case[1]/@duration'), 'default duration');
-  Assert.AreEqual('0', Value(FIXTURE_PATH + '/test-case[1]/@asserts'), 'default asserts');
-  Assert.AreEqual('1.500', Value(FIXTURE_PATH + '/test-case[2]/@duration'), 'duration');
-  Assert.AreEqual('7', Value(FIXTURE_PATH + '/test-case[2]/@asserts'), 'asserts');
-  Assert.AreEqual('0.000', Value(FIXTURE_PATH + '/test-case[3]/@duration'), 'rounded duration');
+  Assert.AreEqual(FormatFloat('0.000000', LDuration, TFormatSettings.Invariant), Value(FIXTURE_PATH + '/@duration'),
+    'suite duration');
+  Assert.IsTrue(FloatValue(FIXTURE_PATH + '/test-case/@duration') < MIN_SLEPT_SECONDS, 'case duration');
+end;
 
-  // The suite and the run cover the 1.5 seconds that ended when the test case was added
-  LDuration := StrToFloat(Value(FIXTURE_PATH + '/@duration'), TFormatSettings.Invariant);
-  Assert.IsTrue(LDuration >= 1.499, 'suite duration ' + LDuration.ToString);
+procedure TNUnitLoggerTests.NotBegunTestCaseIsWrittenAtAddTime;
+var
+  LLogger: TNUnitLogger;
+  LTestCase: TNUnitTestCase;
+begin
+  LLogger := TNUnitLogger.Create;
+  try
+    LTestCase := LLogger.AddTestSuite('Suite', False).AddTestCase('NotTimed', ntrPassed, '', '', 0, False);
 
-  LDuration := StrToFloat(Value('/test-run/@duration'), TFormatSettings.Invariant);
-  Assert.IsTrue(LDuration >= 1.499, 'run duration ' + LDuration.ToString);
+    Assert.IsTrue(LTestCase.StartTime = 0.0, 'StartTime');
+    Assert.IsTrue(LTestCase.EndTime = 0.0, 'EndTime');
+    Assert.IsTrue(LTestCase.AddTime <> 0.0, 'AddTime');
+    Assert.IsFalse(LTestCase.IsRunning, 'running');
+
+    SaveAndLoad(LLogger);
+  finally
+    LLogger.Free;
+  end;
+
+  Assert.AreEqual('0.000000', Value(FIXTURE_PATH + '/test-case/@duration'), 'duration');
+  Assert.AreEqual('0', Value(FIXTURE_PATH + '/test-case/@asserts'), 'default asserts');
+  Assert.IsTrue(TRegEx.IsMatch(Value(FIXTURE_PATH + '/test-case/@start-time'), TIME_PATTERN), 'start-time');
+  Assert.AreEqual(Value(FIXTURE_PATH + '/test-case/@start-time'), Value(FIXTURE_PATH + '/test-case/@end-time'), 'end-time');
+  Assert.AreEqual('0.000000', Value(FIXTURE_PATH + '/@duration'), 'suite duration');
+end;
+
+procedure TNUnitLoggerTests.NotBegunTestSuiteSpansItsTestCases;
+var
+  LLogger: TNUnitLogger;
+  LTestSuite: TNUnitTestSuite;
+begin
+  LLogger := TNUnitLogger.Create;
+  try
+    LTestSuite := LLogger.AddTestSuite('Suite', False);
+    LTestSuite.AddTestCase('First', ntrPassed).EndTestCase;
+    Sleep(SLEEP_MS);
+    LTestSuite.AddTestCase('Second', ntrPassed).EndTestCase;
+
+    LLogger.AddTestSuite('Empty', False);
+
+    SaveAndLoad(LLogger);
+  finally
+    LLogger.Free;
+  end;
+
+  Assert.AreEqual(Value(FIXTURE_PATH + '[1]/test-case[1]/@start-time'), Value(FIXTURE_PATH + '[1]/@start-time'), 'start-time');
+  Assert.AreEqual(Value(FIXTURE_PATH + '[1]/test-case[2]/@end-time'), Value(FIXTURE_PATH + '[1]/@end-time'), 'end-time');
+  Assert.IsTrue(FloatValue(FIXTURE_PATH + '[1]/@duration') >= MIN_SLEPT_SECONDS_BY_NOW, 'duration');
+  Assert.AreEqual('0.000000', Value(FIXTURE_PATH + '[2]/@duration'), 'empty suite duration');
+end;
+
+procedure TNUnitLoggerTests.BeginAndEndMustBeCalledOnceInOrder;
+var
+  LLogger: TNUnitLogger;
+  LTestCase: TNUnitTestCase;
+  LTestSuite: TNUnitTestSuite;
+begin
+  LLogger := TNUnitLogger.Create;
+  try
+    LTestSuite := LLogger.AddTestSuite('Suite', False);
+    LTestCase := LTestSuite.AddTestCase('Case', ntrPassed, '', '', 0, False);
+
+    Assert.WillRaise(procedure begin LTestCase.EndTestCase; end, ENUnitLogger, 'case end before begin');
+    LTestCase.BeginTestCase;
+    Assert.WillRaise(procedure begin LTestCase.BeginTestCase; end, ENUnitLogger, 'case begin twice');
+    LTestCase.EndTestCase;
+    Assert.WillRaise(procedure begin LTestCase.EndTestCase; end, ENUnitLogger, 'case end twice');
+    Assert.WillRaise(procedure begin LTestCase.BeginTestCase; end, ENUnitLogger, 'case begin after end');
+
+    Assert.WillRaise(procedure begin LTestSuite.EndTestSuite; end, ENUnitLogger, 'suite end before begin');
+    LTestSuite.BeginTestSuite;
+    Assert.WillRaise(procedure begin LTestSuite.BeginTestSuite; end, ENUnitLogger, 'suite begin twice');
+    LTestSuite.EndTestSuite;
+    Assert.WillRaise(procedure begin LTestSuite.EndTestSuite; end, ENUnitLogger, 'suite end twice');
+
+    // AddTestCase and AddTestSuite begin by default
+    Assert.WillRaise(procedure begin LTestSuite.AddTestCase('Begun', ntrPassed).BeginTestCase; end, ENUnitLogger,
+      'case begun by AddTestCase');
+    Assert.WillRaise(procedure begin LLogger.AddTestSuite('Begun').BeginTestSuite; end, ENUnitLogger,
+      'suite begun by AddTestSuite');
+  finally
+    LLogger.Free;
+  end;
+end;
+
+procedure TNUnitLoggerTests.SaveToFileRaisesWhenTestCaseNotEnded;
+var
+  LLogger: TNUnitLogger;
+begin
+  WriteOldFile;
+
+  LLogger := TNUnitLogger.Create;
+  try
+    LLogger.AddTestSuite('Suite', False).AddTestCase('NotEnded', ntrPassed);
+
+    Assert.WillRaise(
+      procedure
+      begin
+        LLogger.SaveToFile(FFileName, True);
+      end,
+      ENUnitLogger);
+  finally
+    LLogger.Free;
+  end;
+
+  Assert.AreEqual(OLD_CONTENT, TFile.ReadAllText(FFileName), 'file left untouched');
+end;
+
+procedure TNUnitLoggerTests.SaveToFileRaisesWhenTestSuiteNotEnded;
+var
+  LLogger: TNUnitLogger;
+begin
+  WriteOldFile;
+
+  LLogger := TNUnitLogger.Create;
+  try
+    LLogger.AddTestSuite('NotEnded').AddTestCase('Ended', ntrPassed).EndTestCase;
+
+    Assert.WillRaise(
+      procedure
+      begin
+        LLogger.SaveToFile(FFileName, True);
+      end,
+      ENUnitLogger);
+  finally
+    LLogger.Free;
+  end;
+
+  Assert.AreEqual(OLD_CONTENT, TFile.ReadAllText(FFileName), 'file left untouched');
 end;
 
 procedure TNUnitLoggerTests.TimesIgnoreFormatSettings;
 var
   LFormatSettings: TFormatSettings;
   LLogger: TNUnitLogger;
+  LTestSuite: TNUnitTestSuite;
 begin
   LFormatSettings := FormatSettings;
   try
@@ -554,7 +743,9 @@ begin
 
     LLogger := TNUnitLogger.Create;
     try
-      LLogger.AddTestSuite('Suite').AddTestCase('A', ntrPassed, 2.25);
+      LTestSuite := LLogger.AddTestSuite('Suite');
+      LTestSuite.AddTestCase('A', ntrPassed).EndTestCase;
+      LTestSuite.EndTestSuite;
 
       SaveAndLoad(LLogger);
     finally
@@ -564,10 +755,83 @@ begin
     FormatSettings := LFormatSettings;
   end;
 
-  Assert.AreEqual('2.250', Value(FIXTURE_PATH + '/test-case/@duration'), 'duration');
+  Assert.IsTrue(TRegEx.IsMatch(Value(FIXTURE_PATH + '/test-case/@duration'), DURATION_PATTERN), 'duration');
+  Assert.IsTrue(TRegEx.IsMatch(Value(FIXTURE_PATH + '/@duration'), DURATION_PATTERN), 'suite duration');
+  Assert.IsTrue(TRegEx.IsMatch(Value('/test-run/@duration'), DURATION_PATTERN), 'run duration');
   Assert.IsTrue(TRegEx.IsMatch(Value(FIXTURE_PATH + '/test-case/@start-time'), TIME_PATTERN), 'start-time');
   Assert.IsTrue(TRegEx.IsMatch(Value(FIXTURE_PATH + '/test-case/@end-time'), TIME_PATTERN), 'end-time');
   Assert.IsTrue(TRegEx.IsMatch(Value('/test-run/@start-time'), TIME_PATTERN), 'run start-time');
+end;
+
+procedure TNUnitLoggerTests.DefaultOptionsWriteEverything;
+var
+  LLogger: TNUnitLogger;
+begin
+  LLogger := TNUnitLogger.Create;
+  try
+    Assert.IsTrue(LLogger.Options = NUNIT_LOG_DEFAULT_OPTIONS, 'default options');
+
+    LLogger.AddTestSuite('Suite', False).AddTestCase('A', ntrPassed).EndTestCase;
+
+    SaveAndLoad(LLogger);
+  finally
+    LLogger.Free;
+  end;
+
+  // test-run, Assembly, fixture and test case
+  Assert.AreEqual(4, NodeCount('//@start-time'), 'start-time');
+  Assert.AreEqual(4, NodeCount('//@end-time'), 'end-time');
+  Assert.AreEqual(4, NodeCount('//@duration'), 'duration');
+  Assert.AreEqual(1, NodeCount(ASSEMBLY_PATH + '/environment'), 'environment');
+end;
+
+procedure TNUnitLoggerTests.OptionsLeaveOutTimes;
+var
+  LLogger: TNUnitLogger;
+begin
+  LLogger := TNUnitLogger.Create(NUNIT_LOG_DEFAULT_OPTIONS - [nuloLogTimes]);
+  try
+    LLogger.AddTestSuite('Suite', False).AddTestCase('A', ntrPassed).EndTestCase;
+
+    SaveAndLoad(LLogger);
+  finally
+    LLogger.Free;
+  end;
+
+  Assert.AreEqual(0, NodeCount('//@start-time'), 'start-time');
+  Assert.AreEqual(0, NodeCount('//@end-time'), 'end-time');
+  Assert.AreEqual(4, NodeCount('//@duration'), 'duration');
+  Assert.IsTrue(TRegEx.IsMatch(Value(FIXTURE_PATH + '/test-case/@duration'), DURATION_PATTERN), 'duration format');
+end;
+
+procedure TNUnitLoggerTests.EmptyOptionsWriteMinimalFile;
+var
+  LLine: string;
+  LLogger: TNUnitLogger;
+  LTestSuite: TNUnitTestSuite;
+begin
+  LLogger := TNUnitLogger.Create([]);
+  try
+    LTestSuite := LLogger.AddTestSuite('Suite');
+    LTestSuite.AddTestCase('A', ntrPassed).EndTestCase;
+    LTestSuite.AddTestCase('B', ntrFailed, 'Failed', 'at TFoo.Bar').EndTestCase;
+    LTestSuite.EndTestSuite;
+
+    SaveAndLoad(LLogger);
+  finally
+    LLogger.Free;
+  end;
+
+  Assert.AreEqual(0, NodeCount('//@start-time'), 'start-time');
+  Assert.AreEqual(0, NodeCount('//@end-time'), 'end-time');
+  Assert.AreEqual(0, NodeCount('//@duration'), 'duration');
+  Assert.AreEqual(0, NodeCount('//environment'), 'environment');
+
+  for LLine in TFile.ReadAllLines(FFileName, TEncoding.UTF8) do
+    Assert.IsFalse(LLine.StartsWith(' '), 'indented: ' + LLine);
+
+  CheckCounts(FIXTURE_PATH, 2, 1, 1, 0, 0, 0, 0);
+  Assert.AreEqual('at TFoo.Bar', Value(FIXTURE_PATH + '/test-case[2]/failure/stack-trace'), 'stack-trace');
 end;
 
 procedure TNUnitLoggerTests.IdsAreUniqueInDocumentOrder;
@@ -579,12 +843,12 @@ var
 begin
   LLogger := TNUnitLogger.Create;
   try
-    LTestSuite := LLogger.AddTestSuite('First');
-    LTestSuite.AddTestCase('A', ntrPassed);
-    LTestSuite.AddTestCase('B', ntrFailed);
+    LTestSuite := LLogger.AddTestSuite('First', False);
+    LTestSuite.AddTestCase('A', ntrPassed).EndTestCase;
+    LTestSuite.AddTestCase('B', ntrFailed).EndTestCase;
 
-    LTestSuite := LLogger.AddTestSuite('Second');
-    LTestSuite.AddTestCase('C', ntrPassed);
+    LTestSuite := LLogger.AddTestSuite('Second', False);
+    LTestSuite.AddTestCase('C', ntrPassed).EndTestCase;
 
     SaveAndLoad(LLogger);
   finally
@@ -631,12 +895,12 @@ begin
 
   LLogger := TNUnitLogger.Create;
   try
-    LTestSuite := LLogger.AddTestSuite('Suite');
-    LTestSuite.AddTestCase('A', ntrPassed);
+    LTestSuite := LLogger.AddTestSuite('Suite', False);
+    LTestSuite.AddTestCase('A', ntrPassed).EndTestCase;
     LLogger.SaveToFile(FFileName, True);
 
     // Saving again writes the current state
-    LTestSuite.AddTestCase('B', ntrPassed);
+    LTestSuite.AddTestCase('B', ntrPassed).EndTestCase;
     LLogger.SaveToFile(FFileName, True);
   finally
     LLogger.Free;
