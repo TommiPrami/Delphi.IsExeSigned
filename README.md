@@ -36,6 +36,8 @@ Output, with `Verbose` (the default) first the settings, then one line per file:
 - `!` signed, but the signature is not valid (with the reason)  
 - `>` not signed, running the sign command; the sign command's own output and the file's result line follow  
 
+With `FailMode` `LogOnly` the lines of the files that failed the check have `ERROR:` after the marker. With several files a summary line follows, e.g. `3 file(s) checked, 1 of them unsigned, 1 signed now, 0 with invalid signature.`, and when a log is written, `Log written to "<file>"` is the last line.  
+
 ## Parameters
 
 The parameters were renamed in 2026-10: `FileName` is now `Files`, and `ErrorIfNotSigned` is replaced by `FailMode`.
@@ -64,7 +66,7 @@ The parameters were renamed in 2026-10: `FileName` is now `Files`, and `ErrorIfN
 
 - **Verify**  
   - Optional (`True` or `False`), default `False`  
-  - Verifies the signature of every signed file → ExitCode = `5` if any is not valid  
+  - Verifies the signature of every signed file → ExitCode = `5` if any is not valid (with `FailMode` `FailOnError`)  
   - A signature is valid when:  
     - the file has not been modified after signing  
     - the signing certificate chains up to a trusted root certificate  
@@ -79,7 +81,7 @@ The parameters were renamed in 2026-10: `FileName` is now `Files`, and `ErrorIfN
   - Optional, command run for each unsigned file, before the signature checks  
   - Must contain `%filename%` (case-insensitive), it is replaced with the quoted full path of the file → if missing, ExitCode = `6`  
   - Run through `cmd.exe`, so batch files work; its output goes to the same console, and a non-zero exit code is reported  
-  - After the command the file is checked again: if it is signed now, its signature is always verified (exit code `5` if not valid); if it is still not signed, it counts as unsigned  
+  - After the command the file is checked again: if it is signed now, its signature is always verified, also without `Verify` and whatever `VerifySigners` says; if it is still not signed, it counts as unsigned  
   - Quotes inside the value do not get through the command line parsing, so a sign tool in a path with spaces (e.g. `signtool.exe` under `Program Files`) has to be called from a batch file  
   - The sign command gets the file name as its parameter, e.g. in `SignFile.bat` as `%1` (quoted) or `%~1` (without quotes)  
   - If IsExeSigned itself is started from a batch file (e.g. a CI build script), write `%%filename%%` there, otherwise `cmd.exe` expands `%filename%` as an environment variable before IsExeSigned sees it  
@@ -96,7 +98,7 @@ The parameters were renamed in 2026-10: `FileName` is now `Files`, and `ErrorIfN
 
 - **ContinueOnSignTimeout**  
   - Optional (`True` or `False`), default `False`  
-  - `False`: stop at the first sign command timeout → ExitCode = `7`  
+  - `False`: stop at the first sign command timeout → ExitCode = `7` (with `FailMode` `FailOnError`); the log is still written  
   - `True`: continue with the next file; the timed out file counts as unsigned (unless the command signed it before it was stopped)  
 
 - **Log**  
@@ -115,15 +117,21 @@ The parameters were renamed in 2026-10: `FileName` is now `Files`, and `ErrorIfN
   - Optional (`True` or `False`), default `True`  
   - Writes the effective settings before anything else is done, also before the parameter values are checked: the defaults filled in, `FailMode` `Auto` resolved (e.g. `LogOnly (Auto)`), `Verify` `True` when `VerifySigners` is given, and the full path of the log file  
 
-The log has one test case per checked file, named by its full path:
+## Log
 
-- passed: signed (and signature valid, when verified); the message tells the signer  
-- failed: signature not valid, or not signed, with `FailMode` `FailOnError`  
-- error: signature not valid, or not signed, with `FailMode` `LogOnly` (or `Auto`, as a log is written); sign command timeout that stopped the run, or no files match the pattern  
+The log is an NUnit 3 result file (UTF-8, without BOM), written with [Delphi.NUnitLogger](Source/3rdParty/Delphi.NUnitLogger): `test-run` named `IsExeSigned` > `test-suite` of type Assembly (with the environment) > `test-suite` `Signatures` > one `test-case` per checked file, named by its full path.
 
-The log is written also when the run stops early (sign command timeout); not when the command line itself is invalid.  
+- passed: signed (and signature valid, when verified); the message tells the signer, e.g. `Signed by "My Company Ltd", signature is valid`  
+- failed: signature not valid, or not signed, with `FailMode` `FailOnError`; the message tells why, e.g. the Windows error of an invalid signature  
+- error (`label="Error"`): the same with `FailMode` `LogOnly` (or `Auto`, as a log is written); a sign command timeout that stopped the run; no files match the pattern; or an unexpected exception while checking the file (the message has the exception)  
+
+Times: a file's test case runs from the start of its check to the end, signing included, the `Signatures` suite for the whole run. Durations are measured with a stopwatch and written in seconds with six decimals, like NUnit does. "No files match the pattern" is a zero length test case.
+
+The log is written also when the run stops early (sign command timeout, unexpected exception); not when the command line itself is invalid.  
 
 ## Exit codes
+
+Exit codes `1`, `5`, `7` and the "no files match the pattern" case of `3` come from checking the files, so they are set only with `FailMode` `FailOnError`. The others are set in every mode.
 
 | Code | Meaning |
 |------|---------|
@@ -141,6 +149,7 @@ The log is written also when the run stops early (sign command timeout); not whe
 - Only signatures embedded in the file are detected; catalog-signed files (e.g. many Windows system files) are reported as not signed.  
 - Certificate revocation is not checked, as it needs network access, which CI machines might not have.  
 - For a file with multiple signatures (e.g. SHA-1 + SHA-256), only the primary one is verified.  
+- The Win32 build runs as a 32-bit program, so Windows redirects paths under `C:\Windows\System32` to `C:\Windows\SysWOW64`; it checks the 32-bit copies of system files (or reports them missing). Use the Win64 build to check 64-bit system files. Your own build output is not affected.  
 
 ## Tests
 
