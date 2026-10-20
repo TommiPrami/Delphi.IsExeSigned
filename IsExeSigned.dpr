@@ -26,14 +26,14 @@ begin
   try
     var LCommandLine := TCommandLineParameters.Create;
     try
-      if not ParseCommandLine(LCommandLine) then
-        Exit;
-
-      var LRunner := TCIESRunner.Create(LCommandLine);
-      try
-        LRunner.Run;
-      finally
-        LRunner.Free;
+      if ParseCommandLine(LCommandLine) then
+      begin
+        var LRunner := TCIESRunner.Create(LCommandLine);
+        try
+          LRunner.Run;
+        finally
+          LRunner.Free;
+        end;
       end;
     finally
       LCommandLine.Free;
