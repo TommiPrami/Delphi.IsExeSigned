@@ -9,6 +9,7 @@ Right now it’s mainly used in CI as a sanity check: making sure the `.exe` fil
 ```
 IsExeSigned.exe -Files:"<FILE|DIR\PATTERN[;PATTERN]>" [-FailMode:<Auto|FailOnError|LogOnly>] [-Recursive:<True|False>]
   [-Verify:<True|False>] [-VerifySigners:"<PATTERN>"]
+  [-CertificateExpirationWarning:<DAYS>] [-CertificateExpirationError:<DAYS>]
   [-SignCommand:"<COMMAND %filename%>"] [-SignFilter:"<PATTERN>"]
   [-SignTimeout:<SECONDS>] [-ContinueOnSignTimeout:<True|False>]
   [-Log:<True|False>] [-LogFile:"<FILENAME>"] [-LogOverwrite:<True|False>]
@@ -27,13 +28,14 @@ IsExeSigned.exe -Files:"C:\Build\*.exe;*.dll" -SignCommand:"C:\SignFile.bat %fil
 IsExeSigned.exe -Files:"C:\Build\*.dll" -SignCommand:"C:\SignFile.bat %filename%" -SignFilter:"*\DllFiles\fb*.dll;*\Redistributables\*"
 IsExeSigned.exe -Files:"C:\Build\*.exe;*.dll" -VerifySigners:"*MyCompanyLtd*" -LogFile:"C:\Build\Signatures.xml"
 IsExeSigned.exe -Files:"C:\Build\*.exe;*.dll" -Verify:True -FailMode:FailOnError -LogFile:"C:\Build\Signatures.xml"
+IsExeSigned.exe -Files:"C:\Build\*.exe" -VerifySigners:"*MyCompanyLtd*" -CertificateExpirationWarning:90 -CertificateExpirationError:30
 ```
 
 Output, with `Verbose` (the default) first the settings, then one line per file:
 
-- `-` signed (and signature valid, when verified)  
+- `-` signed (and signature valid, when verified); `WARNING:` when the signing certificate expires soon  
 - `*` not signed  
-- `!` signed, but the signature is not valid (with the reason)  
+- `!` signed, but the signature is not valid (with the reason), or it is valid but the signing certificate expires (or has expired) within `CertificateExpirationError` days  
 - `>` not signed, running the sign command; the sign command's own output and the file's result line follow  
 
 With `FailMode` `LogOnly` the lines of the files that failed the check have `ERROR:` after the marker. With several files a summary line follows, e.g. `3 file(s) checked, 1 of them unsigned, 1 signed now, 0 with invalid signature.`, and when a log is written, `Log written to "<file>"` is the last line.  
@@ -56,7 +58,7 @@ The parameters were renamed in 2026-10: `FileName` is now `Files`, and `ErrorIfN
 - **FailMode**  
   - Optional (`Auto`, `FailOnError` or `LogOnly`), default `Auto`  
   - `Auto`: `LogOnly` if a log is written (`Log` or `LogFile` given), otherwise `FailOnError`  
-  - `FailOnError`: any error found while checking sets its exit code: a file not signed → `1`, a verified signature not valid → `5`, sign command timeout → `7`, no files match the pattern → `3`  
+  - `FailOnError`: any error found while checking sets its exit code: a file not signed → `1`, a verified signature not valid → `5`, sign command timeout → `7`, signing certificate expiring → `8`, no files match the pattern → `3`  
   - `LogOnly`: the errors are only reported, the exit code stays `0`. On the console the file's line has `ERROR:`, and in the log the test case is an error (`label="Error"`), so the log is where the failures show  
   - Command line errors (exit codes `2`, `3` and `6` found before checking any file) and exit code `4` are set in every mode  
 
@@ -76,6 +78,16 @@ The parameters were renamed in 2026-10: `FileName` is now `Files`, and `ErrorIfN
   - Optional, one or more signer name patterns separated by `;` (same wildcards as above, case-insensitive)  
   - Verifies the signature only for the files whose signer name matches, other signed files are just listed  
   - Giving it turns verifying on, `Verify` is not needed  
+  - The matching signers are taken as your own: their certificate expiration is checked too, see below  
+
+- **CertificateExpirationWarning**, **CertificateExpirationError**  
+  - Optional, days (`0`–`3650`), defaults `60` and `14`; `0` turns the check off. The error limit must not be greater than the warning limit (→ ExitCode = `3`)  
+  - The expiration date of the signing certificate comes from the file itself: the embedded signature carries the signer's certificate  
+  - Checked for your own files only: the files signed during the run (`SignCommand`), and the verified files whose signer matches `VerifySigners`. Other files, e.g. redistributables, usually have a timestamped signature that stays valid after its certificate expires, so their certificate's age is not an error  
+  - Checked only when the signature is valid, after verifying it  
+  - Certificate expires within `CertificateExpirationWarning` days → a warning on the file's line and in the log, the exit code is not changed  
+  - Certificate expires within `CertificateExpirationError` days, or has expired already → an error, ExitCode = `8` (with `FailMode` `FailOnError`), so a file signed with a certificate about to expire is not shipped  
+  - Otherwise the file's line tells the date, e.g. `signature is valid, certificate valid until 2027-08-05`  
 
 - **SignCommand**  
   - Optional, command run for each unsigned file, before the signature checks  
@@ -122,7 +134,8 @@ The parameters were renamed in 2026-10: `FileName` is now `Files`, and `ErrorIfN
 The log is an NUnit 3 result file (UTF-8, without BOM), written with [Delphi.NUnitLogger](Source/3rdParty/Delphi.NUnitLogger): `test-run` named `IsExeSigned` > `test-suite` of type Assembly (with the environment) > `test-suite` `Signatures` > one `test-case` per checked file, named by its full path.
 
 - passed: signed (and signature valid, when verified); the message tells the signer, e.g. `Signed by "My Company Ltd", signature is valid`  
-- failed: signature not valid, or not signed, with `FailMode` `FailOnError`; the message tells why, e.g. the Windows error of an invalid signature  
+- warning: signature valid, but the signing certificate expires within `CertificateExpirationWarning` days  
+- failed: signature not valid, not signed, or the signing certificate expires within `CertificateExpirationError` days, with `FailMode` `FailOnError`; the message tells why, e.g. the Windows error of an invalid signature  
 - error (`label="Error"`): the same with `FailMode` `LogOnly` (or `Auto`, as a log is written); a sign command timeout that stopped the run; no files match the pattern; or an unexpected exception while checking the file (the message has the exception)  
 
 Times: a file's test case runs from the start of its check to the end, signing included, the `Signatures` suite for the whole run. Durations are measured with a stopwatch and written in seconds with six decimals, like NUnit does. "No files match the pattern" is a zero length test case.
@@ -131,18 +144,19 @@ The log is written also when the run stops early (sign command timeout, unexpect
 
 ## Exit codes
 
-Exit codes `1`, `5`, `7` and the "no files match the pattern" case of `3` come from checking the files, so they are set only with `FailMode` `FailOnError`. The others are set in every mode.
+Exit codes `1`, `5`, `7`, `8` and the "no files match the pattern" case of `3` come from checking the files, so they are set only with `FailMode` `FailOnError`. The others are set in every mode.
 
 | Code | Meaning |
 |------|---------|
-| `0` | All files signed, and all verified signatures are valid; or `FailMode` is `LogOnly` (or `Auto` with a log) and the command line is valid |
+| `0` | All files signed, all verified signatures are valid, and no certificate of your own files expires within `CertificateExpirationError` days; or `FailMode` is `LogOnly` (or `Auto` with a log) and the command line is valid |
 | `1` | At least one file is not signed (takes precedence over `5`) |
 | `2` | Invalid command line: `Files` missing, unknown parameter, or a parameter value is invalid (e.g. `SignTimeout` out of range) |
-| `3` | File not found, pattern without a directory, directory not found, no files match the pattern, `SignFilter` without `SignCommand`, log file directory not found, or log file exists and `LogOverwrite` is `False` |
+| `3` | File not found, pattern without a directory, directory not found, no files match the pattern, `SignFilter` without `SignCommand`, log file directory not found, log file exists and `LogOverwrite` is `False`, or `CertificateExpirationError` greater than `CertificateExpirationWarning` |
 | `4` | Something unexpected happened (like an unhandled exception) |
 | `5` | At least one verified signature is not valid |
 | `6` | `SignCommand` does not contain `%filename%` |
 | `7` | Sign command did not finish in `SignTimeout` seconds, and `ContinueOnSignTimeout` is `False` |
+| `8` | The signing certificate of one of your own files expires within `CertificateExpirationError` days (`1` and `5` take precedence) |
 
 ## Limitations
 

@@ -17,16 +17,17 @@ uses
   DUnitX.TestFramework,
   Delphi.CommandLineParser in '..\Source\3rdParty\Delphi.CommandLineParser\Delphi.CommandLineParser.pas',
   Delphi.WildCardMatcher in '..\Source\3rdParty\Delphi.WildCardMatcher\Source\Delphi.WildCardMatcher.pas',
-  CIESUnit.Consts in '..\Source\CIESUnit.Consts.pas',
-  CIESUnit.Types in '..\Source\CIESUnit.Types.pas',
-  CIESUnit.Utils in '..\Source\CIESUnit.Utils.pas',
-  CIESUnit.Tests.Common in 'Tests\CIESUnit.Tests.Common.pas',
-  CIESUnit.Utils.Tests in 'Tests\CIESUnit.Utils.Tests.pas',
-  CIESUnit.Types.Tests in 'Tests\CIESUnit.Types.Tests.pas',
-  CIESUnit.Integration.Parameters.Tests in 'Tests\CIESUnit.Integration.Parameters.Tests.pas',
-  CIESUnit.Integration.Check.Tests in 'Tests\CIESUnit.Integration.Check.Tests.pas',
-  CIESUnit.Integration.Signing.Tests in 'Tests\CIESUnit.Integration.Signing.Tests.pas',
-  CIESUnit.Integration.Log.Tests in 'Tests\CIESUnit.Integration.Log.Tests.pas';
+  IESUnit.Consts in '..\Source\IESUnit.Consts.pas',
+  IESUnit.Types in '..\Source\IESUnit.Types.pas',
+  IESUnit.Utils in '..\Source\IESUnit.Utils.pas',
+  IESUnit.Tests.Common in 'Tests\IESUnit.Tests.Common.pas',
+  IESUnit.Utils.Tests in 'Tests\IESUnit.Utils.Tests.pas',
+  IESUnit.Types.Tests in 'Tests\IESUnit.Types.Tests.pas',
+  IESUnit.Integration.Parameters.Tests in 'Tests\IESUnit.Integration.Parameters.Tests.pas',
+  IESUnit.Integration.Check.Tests in 'Tests\IESUnit.Integration.Check.Tests.pas',
+  IESUnit.Integration.Signing.Tests in 'Tests\IESUnit.Integration.Signing.Tests.pas',
+  IESUnit.Integration.Log.Tests in 'Tests\IESUnit.Integration.Log.Tests.pas',
+  IESUnit.Integration.Certificate.Tests in 'Tests\IESUnit.Integration.Certificate.Tests.pas';
 
 { keep comment here to protect the following conditional from being removed by the IDE when adding a unit }
 {$IF NOT DEFINED(TESTINSIGHT)}

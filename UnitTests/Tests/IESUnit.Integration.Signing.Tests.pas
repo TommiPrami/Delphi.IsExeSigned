@@ -1,11 +1,11 @@
-﻿unit CIESUnit.Integration.Signing.Tests;
+﻿unit IESUnit.Integration.Signing.Tests;
 
 // IsExeSigned.exe run as a separate process: signing unsigned files with a (fake) sign command.
 
 interface
 
 uses
-  DUnitX.TestFramework, CIESUnit.Tests.Common;
+  DUnitX.TestFramework, IESUnit.Tests.Common;
 
 type
   [TestFixture]
@@ -30,7 +30,7 @@ type
 implementation
 
 uses
-  System.SysUtils, CIESUnit.Consts, CIESUnit.Utils;
+  System.SysUtils, IESUnit.Consts, IESUnit.Utils;
 
 { TIsExeSignedSigningTests }
 

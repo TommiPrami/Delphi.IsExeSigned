@@ -1,4 +1,4 @@
-﻿unit CIESUnit.Integration.Parameters.Tests;
+﻿unit IESUnit.Integration.Parameters.Tests;
 
 // IsExeSigned.exe run as a separate process: invalid command lines and their exit codes, and the settings Verbose
 // writes.
@@ -6,7 +6,7 @@
 interface
 
 uses
-  DUnitX.TestFramework, CIESUnit.Tests.Common;
+  DUnitX.TestFramework, IESUnit.Tests.Common;
 
 type
   [TestFixture]
@@ -45,12 +45,12 @@ type
 implementation
 
 uses
-  System.SysUtils, CIESUnit.Consts;
+  System.SysUtils, IESUnit.Consts;
 
 // Line of one setting, as Verbose writes it
 function SettingLine(const AName, AValue: string): string;
 begin
-  Result := '  ' + AName.PadRight(21) + ' : ' + AValue;
+  Result := '  ' + AName.PadRight(SETTING_NAME_WIDTH) + ' : ' + AValue;
 end;
 
 { TIsExeSignedParameterTests }

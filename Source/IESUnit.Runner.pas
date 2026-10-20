@@ -1,4 +1,4 @@
-﻿unit CIESUnit.Runner;
+﻿unit IESUnit.Runner;
 
 // Checks the files the command line names, signs the unsigned ones if asked, writes the console output and the NUnit
 // log, and sets the exit code.
@@ -6,11 +6,13 @@
 interface
 
 uses
-  Delphi.WildCardMatcher, DNLUnit.NUnitLogger, CIESUnit.Types;
+  Delphi.WildCardMatcher, DNLUnit.NUnitLogger, IESUnit.Types, IESUnit.Utils;
 
 type
-  TCIESRunner = class(TObject)
+  TIESRunner = class(TObject)
   strict private
+    FCertificateExpirationErrors: Integer;
+    FCertificateExpirationWarnings: Integer;
     FCommandLine: TCommandLineParameters;
     // FailOnError or LogOnly, Auto resolved
     FFailMode: TFailMode;
@@ -37,11 +39,16 @@ type
     // Log result of a file that failed the check: an error with FailMode LogOnly, as then the log is the only place
     // the failure shows
     function FailedCheckResult: TNUnitTestResult;
+    // Files signed now, and files of the VerifySigners signers, are our own files, their certificate must not expire
+    // soon. Others, e.g. redistributables, are timestamped usually, and stay valid after their certificate expires.
+    function MustCheckCertificateExpiration(const ASignerName: string; const ASignedNow: Boolean): Boolean;
     function MustVerifySignature(const ASignerName: string; const ASignedNow: Boolean): Boolean;
     // Runs the sign command for AFileName, ASignError tells what went wrong, if anything. False when the run must
     // stop (timeout and ContinueOnSignTimeout is False).
     function SignFile(const AFileName: string; var ASignError: string): Boolean;
-    procedure ReportSignedFile(const AFileName, ASignerName: string; const ASignedNow: Boolean);
+    // Report of a file with a valid signature, whose certificate expiration is checked
+    procedure ReportCertificateExpiration(const ASignedLine, ASignedText: string; const AExpiration: TDateTime);
+    procedure ReportSignedFile(const AFileName: string; const ASignatureInfo: TSignatureInfo; const ASignedNow: Boolean);
     procedure ReportUnsignedFile(const AFileName, ASignError: string);
     // Saves the log, if one is asked for
     procedure SaveLog;
@@ -62,7 +69,19 @@ type
 implementation
 
 uses
-  System.SysUtils, CIESUnit.Commandline, CIESUnit.Consts, CIESUnit.Utils;
+  System.DateUtils, System.SysUtils, IESUnit.Commandline, IESUnit.Consts;
+
+// AThresholdDays 0 is off
+function ExpirationThresholdReached(const AThresholdDays, ADaysLeft: Integer): Boolean;
+begin
+  Result := (AThresholdDays > 0) and (ADaysLeft <= AThresholdDays);
+end;
+
+// AExpiration is UTC, the text is the local date
+function LocalDateText(const AExpiration: TDateTime): string;
+begin
+  Result := FormatDateTime('yyyy"-"mm"-"dd', TTimeZone.Local.ToLocalTime(AExpiration));
+end;
 
 // No patterns, the filter accepts everything
 function SplitPatterns(const APatterns: string): TArray<string>;
@@ -70,9 +89,9 @@ begin
   Result := APatterns.Split([';'], TStringSplitOptions.ExcludeEmpty);
 end;
 
-{ TCIESRunner }
+{ TIESRunner }
 
-constructor TCIESRunner.Create(const ACommandLine: TCommandLineParameters);
+constructor TIESRunner.Create(const ACommandLine: TCommandLineParameters);
 begin
   inherited Create;
 
@@ -89,14 +108,14 @@ begin
   FSignFilter := TWildCardFilter.Create(SplitPatterns(FCommandLine.SignFilter), [], []);
 end;
 
-destructor TCIESRunner.Destroy;
+destructor TIESRunner.Destroy;
 begin
   FLogger.Free;
 
   inherited Destroy;
 end;
 
-function TCIESRunner.CheckFile(const AFileName: string): Boolean;
+function TIESRunner.CheckFile(const AFileName: string): Boolean;
 begin
   // Begun here, so the duration covers the signing too. Result and message are set when they are known.
   FLogTestCase := FLogTestSuite.AddTestCase(AFileName, ntrPassed);
@@ -118,13 +137,13 @@ begin
   end;
 end;
 
-function TCIESRunner.CheckFileSignature(const AFileName: string): Boolean;
+function TIESRunner.CheckFileSignature(const AFileName: string): Boolean;
 var
-  LSignerName: string;
+  LSignatureInfo: TSignatureInfo;
 begin
   Result := True;
 
-  var LIsSigned := IsExeSigned(AFileName, LSignerName);
+  var LIsSigned := GetSignatureInfo(AFileName, LSignatureInfo);
   var LSignedNow := False;
   // What went wrong with the sign command, for the log
   var LSignError := '';
@@ -134,7 +153,7 @@ begin
     if not SignFile(AFileName, LSignError) then
       Exit(False);
 
-    LIsSigned := IsExeSigned(AFileName, LSignerName);
+    LIsSigned := GetSignatureInfo(AFileName, LSignatureInfo);
     LSignedNow := LIsSigned;
 
     if LSignedNow then
@@ -142,28 +161,34 @@ begin
   end;
 
   if LIsSigned then
-    ReportSignedFile(AFileName, LSignerName, LSignedNow)
+    ReportSignedFile(AFileName, LSignatureInfo, LSignedNow)
   else
     ReportUnsignedFile(AFileName, LSignError);
 end;
 
-function TCIESRunner.FailedCheckPrefix: string;
+function TIESRunner.FailedCheckPrefix: string;
 begin
   Result := if FFailMode = LogOnly then 'ERROR: ' else '';
 end;
 
-function TCIESRunner.FailedCheckResult: TNUnitTestResult;
+function TIESRunner.FailedCheckResult: TNUnitTestResult;
 begin
   Result := if FFailMode = LogOnly then ntrError else ntrFailed;
 end;
 
-function TCIESRunner.MustVerifySignature(const ASignerName: string; const ASignedNow: Boolean): Boolean;
+function TIESRunner.MustCheckCertificateExpiration(const ASignerName: string; const ASignedNow: Boolean): Boolean;
+begin
+  Result := ((FCommandLine.CertificateExpirationWarning > 0) or (FCommandLine.CertificateExpirationError > 0))
+    and (ASignedNow or (not FCommandLine.VerifySigners.IsEmpty and FSignerFilter.Accepts(ASignerName)));
+end;
+
+function TIESRunner.MustVerifySignature(const ASignerName: string; const ASignedNow: Boolean): Boolean;
 begin
   // Just signed files are always checked, to make sure the signing really worked
   Result := ASignedNow or (FVerifySignatures and FSignerFilter.Accepts(ASignerName));
 end;
 
-function TCIESRunner.SignFile(const AFileName: string; var ASignError: string): Boolean;
+function TIESRunner.SignFile(const AFileName: string; var ASignError: string): Boolean;
 var
   LSignExitCode: Cardinal;
 begin
@@ -201,36 +226,76 @@ begin
   end;
 end;
 
-procedure TCIESRunner.ReportSignedFile(const AFileName, ASignerName: string; const ASignedNow: Boolean);
+procedure TIESRunner.ReportCertificateExpiration(const ASignedLine, ASignedText: string; const AExpiration: TDateTime);
+begin
+  var LDaysLeft := CertificateDaysLeft(AExpiration);
+  var LDate := LocalDateText(AExpiration);
+  var LExpiration: string;
+
+  if AExpiration = 0.0 then
+    LExpiration := 'certificate is not found in the signature'
+  else if LDaysLeft < 0 then
+    LExpiration := 'certificate expired ' + LDate + ', ' + (-LDaysLeft).ToString + ' days ago'
+  else
+    LExpiration := 'certificate expires ' + LDate + ', in ' + LDaysLeft.ToString + ' days';
+
+  if (AExpiration = 0.0) or ExpirationThresholdReached(FCommandLine.CertificateExpirationError, LDaysLeft) then
+  begin
+    Writeln(FLineIndent + '! ' + FailedCheckPrefix + ASignedLine + ' - signature is valid, but the ' + LExpiration);
+
+    SetLogTestResult(FailedCheckResult, ASignedText + ', signature is valid, but the ' + LExpiration);
+
+    Inc(FCertificateExpirationErrors);
+  end
+  else if ExpirationThresholdReached(FCommandLine.CertificateExpirationWarning, LDaysLeft) then
+  begin
+    Writeln(FLineIndent + '- ' + ASignedLine + ' - signature is valid - WARNING: ' + LExpiration);
+
+    SetLogTestResult(ntrWarning, ASignedText + ', signature is valid, but the ' + LExpiration);
+
+    Inc(FCertificateExpirationWarnings);
+  end
+  else
+  begin
+    Writeln(FLineIndent + '- ' + ASignedLine + ' - signature is valid, certificate valid until ' + LDate);
+
+    SetLogTestResult(ntrPassed, ASignedText + ', signature is valid, certificate valid until ' + LDate);
+  end;
+end;
+
+procedure TIESRunner.ReportSignedFile(const AFileName: string; const ASignatureInfo: TSignatureInfo; const ASignedNow: Boolean);
 var
   LErrorMessage: string;
 begin
-  var LSignedText := (if ASignedNow then 'Signed now by ' else 'Signed by ') + ASignerName.QuotedString('"');
+  var LSignerName := ASignatureInfo.SignerName;
+  var LSignedText := (if ASignedNow then 'Signed now by ' else 'Signed by ') + LSignerName.QuotedString('"');
   var LSignedLine := AFileName.QuotedString('"') + ' - is ' + LSignedText;
 
-  if not MustVerifySignature(ASignerName, ASignedNow) then
+  if not MustVerifySignature(LSignerName, ASignedNow) then
   begin
     Writeln(FLineIndent + '- ' + LSignedLine);
 
     SetLogTestResult(ntrPassed, LSignedText);
   end
-  else if IsSignatureValid(AFileName, LErrorMessage) then
-  begin
-    Writeln(FLineIndent + '- ' + LSignedLine + ' - signature is valid');
-
-    SetLogTestResult(ntrPassed, LSignedText + ', signature is valid');
-  end
-  else
+  else if not IsSignatureValid(AFileName, LErrorMessage) then
   begin
     Writeln(FLineIndent + '! ' + FailedCheckPrefix + LSignedLine + ' - signature is NOT valid: ' + LErrorMessage);
 
     SetLogTestResult(FailedCheckResult, LSignedText + ', signature is NOT valid: ' + LErrorMessage);
 
     Inc(FInvalidSignatures);
+  end
+  else if MustCheckCertificateExpiration(LSignerName, ASignedNow) then
+    ReportCertificateExpiration(LSignedLine, LSignedText, ASignatureInfo.CertificateExpiration)
+  else
+  begin
+    Writeln(FLineIndent + '- ' + LSignedLine + ' - signature is valid');
+
+    SetLogTestResult(ntrPassed, LSignedText + ', signature is valid');
   end;
 end;
 
-procedure TCIESRunner.ReportUnsignedFile(const AFileName, ASignError: string);
+procedure TIESRunner.ReportUnsignedFile(const AFileName, ASignError: string);
 begin
   Writeln(FLineIndent + '* ' + FailedCheckPrefix + AFileName.QuotedString('"') +  ' - is NOT Signed');
 
@@ -239,7 +304,7 @@ begin
   Inc(FUnsignedFiles);
 end;
 
-procedure TCIESRunner.Run;
+procedure TIESRunner.Run;
 begin
   FLogTestSuite := FLogger.AddTestSuite(LOG_TEST_SUITE_NAME);
   try
@@ -281,7 +346,7 @@ begin
   end;
 end;
 
-procedure TCIESRunner.SaveLog;
+procedure TIESRunner.SaveLog;
 begin
   var LLogFileName := FCommandLine.GetLogFileName;
 
@@ -293,27 +358,29 @@ begin
   Writeln('Log written to ' + LLogFileName.QuotedString('"'));
 end;
 
-procedure TCIESRunner.SetExitCode;
+procedure TIESRunner.SetExitCode;
 begin
   if FUnsignedFiles > 0 then
     SetFailExitCode(EXIT_CODE_NOT_SIGNED)
   else if FInvalidSignatures > 0 then
-    SetFailExitCode(EXIT_CODE_SIGNATURE_NOT_VALID);
+    SetFailExitCode(EXIT_CODE_SIGNATURE_NOT_VALID)
+  else if FCertificateExpirationErrors > 0 then
+    SetFailExitCode(EXIT_CODE_CERTIFICATE_EXPIRING);
 end;
 
-procedure TCIESRunner.SetFailExitCode(const AExitCode: Integer);
+procedure TIESRunner.SetFailExitCode(const AExitCode: Integer);
 begin
   if FFailMode = FailOnError then
     ExitCode := AExitCode;
 end;
 
-procedure TCIESRunner.SetLogTestResult(const AResult: TNUnitTestResult; const AMessage: string);
+procedure TIESRunner.SetLogTestResult(const AResult: TNUnitTestResult; const AMessage: string);
 begin
   FLogTestCase.TestResult := AResult;
   FLogTestCase.Message := AMessage;
 end;
 
-procedure TCIESRunner.WriteSummary(const AFilesCount: Integer);
+procedure TIESRunner.WriteSummary(const AFilesCount: Integer);
 begin
   var LSummary := AFilesCount.ToString + ' file(s) checked, ' + FUnsignedFiles.ToString + ' of them unsigned';
 
@@ -325,6 +392,12 @@ begin
 
   if FVerifySignatures or FSignFiles then
     LSummary := LSummary + ', ' + FInvalidSignatures.ToString + ' with invalid signature';
+
+  if FCertificateExpirationErrors > 0 then
+    LSummary := LSummary + ', ' + FCertificateExpirationErrors.ToString + ' with certificate expiring (error)';
+
+  if FCertificateExpirationWarnings > 0 then
+    LSummary := LSummary + ', ' + FCertificateExpirationWarnings.ToString + ' with certificate expiring soon (warning)';
 
   Writeln(LSummary + '.');
 end;

@@ -1,11 +1,11 @@
-﻿unit CIESUnit.Integration.Check.Tests;
+﻿unit IESUnit.Integration.Check.Tests;
 
 // IsExeSigned.exe run as a separate process: checking signed, unsigned and tampered files.
 
 interface
 
 uses
-  DUnitX.TestFramework, CIESUnit.Tests.Common;
+  DUnitX.TestFramework, IESUnit.Tests.Common;
 
 type
   [TestFixture]
@@ -35,7 +35,7 @@ type
 implementation
 
 uses
-  System.SysUtils, CIESUnit.Consts, CIESUnit.Utils;
+  System.SysUtils, IESUnit.Consts, IESUnit.Utils;
 
 { TIsExeSignedCheckTests }
 

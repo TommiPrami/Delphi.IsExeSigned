@@ -4,7 +4,7 @@
         <ProjectVersion>20.4</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Release</Config>
+        <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <ProjectName Condition="'$(ProjectName)'==''">IsExeSigned</ProjectName>
         <TargetedPlatforms>1</TargetedPlatforms>
@@ -93,7 +93,7 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1_Win32)'!=''">
         <DCC_RemoteDebug>false</DCC_RemoteDebug>
-        <Debugger_RunParams>-filename:&quot;C:\git_st\Delphi\InnoSetup\Bin\*.dll;*.exe&quot;</Debugger_RunParams>
+        <Debugger_RunParams>-Files:&quot;C:\git_st\Delphi\InnoSetup\Bin\*.dll;*.exe&quot;</Debugger_RunParams>
         <Manifest_File>(None)</Manifest_File>
         <AppDPIAwarenessMode>none</AppDPIAwarenessMode>
         <VerInfo_Release>0</VerInfo_Release>
@@ -120,11 +120,11 @@
         <DCCReference Include="Source\3rdParty\Delphi.CommandLineParser\Delphi.CommandLineParser.pas"/>
         <DCCReference Include="Source\3rdParty\Delphi.WildCardMatcher\Source\Delphi.WildCardMatcher.pas"/>
         <DCCReference Include="Source\3rdParty\Delphi.NUnitLogger\Source\DNLUnit.NUnitLogger.pas"/>
-        <DCCReference Include="Source\CIESUnit.Consts.pas"/>
-        <DCCReference Include="Source\CIESUnit.Commandline.pas"/>
-        <DCCReference Include="Source\CIESUnit.Runner.pas"/>
-        <DCCReference Include="Source\CIESUnit.Types.pas"/>
-        <DCCReference Include="Source\CIESUnit.Utils.pas"/>
+        <DCCReference Include="Source\IESUnit.Commandline.pas"/>
+        <DCCReference Include="Source\IESUnit.Consts.pas"/>
+        <DCCReference Include="Source\IESUnit.Runner.pas"/>
+        <DCCReference Include="Source\IESUnit.Types.pas"/>
+        <DCCReference Include="Source\IESUnit.Utils.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

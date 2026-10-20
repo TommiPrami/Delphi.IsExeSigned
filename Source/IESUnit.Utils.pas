@@ -1,23 +1,45 @@
-﻿unit CIESUnit.Utils;
+﻿unit IESUnit.Utils;
 
 interface
 
+type
+  // From the signer's certificate in the embedded signature of a file
+  TSignatureInfo = record
+    // UTC, 0.0 if the signer's certificate was not found in the signature
+    CertificateExpiration: TDateTime;
+    SignerName: string;
+  end;
+
+  // Whole days from now until AExpiration (UTC), negative when already expired
+  function CertificateDaysLeft(const AExpiration: TDateTime): Integer;
+  // False if the file has no embedded signature
+  function GetSignatureInfo(const AExeFileName: string; var ASignatureInfo: TSignatureInfo): Boolean;
   function IsExeSigned(const AExeFileName: string; out ASignerName: string): Boolean;
   function IsSignatureValid(const AExeFileName: string; out AErrorMessage: string): Boolean;
   function GetFiles(const AFileNamePattern: string; const ARecursive: Boolean): TArray<string>;
   // Returns False if the command did not finish in ATimeoutSeconds, it is then stopped
   function RunSignFileCommand(const ACommandLine, AFileName: string; const ATimeoutSeconds: Integer; out AExitCode: Cardinal): Boolean;
+  function UtcNow: TDateTime;
 
 
 implementation
 
 uses
-  Winapi.Windows, System.IOUtils, System.SysUtils, CIESUnit.Consts, CIESUnit.Types, Delphi.WildCardMatcher;
+  Winapi.Windows, System.IOUtils, System.Math, System.SysUtils, IESUnit.Consts, IESUnit.Types, Delphi.WildCardMatcher;
 
-function GetSignerName(const AStore: HCERTSTORE; const AMsg: HCRYPTMSG): string;
+function FileTimeToDateTime(const AFileTime: TFileTime): TDateTime;
+var
+  LSystemTime: TSystemTime;
 begin
-  Result := '';
+  if not FileTimeToSystemTime(AFileTime, LSystemTime) then
+    Exit(0.0);
 
+  Result := SystemTimeToDateTime(LSystemTime);
+end;
+
+// Signer name and certificate expiration from the signer's certificate, which is in the signature's store
+procedure ReadSignerCertificate(const AStore: HCERTSTORE; const AMsg: HCRYPTMSG; var ASignatureInfo: TSignatureInfo);
+begin
   // Get signer information size
   var LSignerInfoSize: DWORD := 0;
   CryptMsgGetParam(AMsg, CMSG_SIGNER_INFO_PARAM, 0, nil, @LSignerInfoSize);
@@ -46,15 +68,20 @@ begin
     if LCertContext <> nil then
     begin
       try
+        ASignatureInfo.CertificateExpiration := FileTimeToDateTime(PCERT_CONTEXT(LCertContext).pCertInfo.NotAfter);
+
         // Get the subject name length (in characters, including the terminating null)
         var LNameLen := CertGetNameString(LCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, nil, nil, 0);
 
         if LNameLen > 1 then
         begin
-          SetLength(Result, LNameLen);
-          LNameLen := CertGetNameString(LCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, nil, PChar(Result), LNameLen);
+          var LName: string;
+          SetLength(LName, LNameLen);
+          LNameLen := CertGetNameString(LCertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, nil, PChar(LName), LNameLen);
           // Drop the terminating null that CertGetNameString counts in the length
-          SetLength(Result, LNameLen - 1);
+          SetLength(LName, LNameLen - 1);
+
+          ASignatureInfo.SignerName := LName;
         end;
       finally
         CertFreeCertificateContext(LCertContext);
@@ -65,13 +92,18 @@ begin
   end;
 end;
 
-function IsExeSigned(const AExeFileName: string; out ASignerName: string): Boolean;
+function CertificateDaysLeft(const AExpiration: TDateTime): Integer;
+begin
+  Result := Floor(AExpiration - UtcNow);
+end;
+
+function GetSignatureInfo(const AExeFileName: string; var ASignatureInfo: TSignatureInfo): Boolean;
 var
   LContentType: DWORD;
   LEncoding: DWORD;
   LFormatType: DWORD;
 begin
-  ASignerName := '';
+  ASignatureInfo := Default(TSignatureInfo);
 
   var LStore: HCERTSTORE := nil;
   var LMsg: HCRYPTMSG := nil;
@@ -81,7 +113,7 @@ begin
       CERT_QUERY_FORMAT_FLAG_BINARY, 0, @LEncoding, @LContentType, @LFormatType, @LStore, @LMsg, nil);
 
     if Result then
-      ASignerName := GetSignerName(LStore, LMsg);
+      ReadSignerCertificate(LStore, LMsg, ASignatureInfo);
   finally
     if Assigned(LStore) then
       CertCloseStore(LStore, 0);
@@ -89,6 +121,15 @@ begin
     if Assigned(LMsg) then
       CryptMsgClose(LMsg);
   end;
+end;
+
+function IsExeSigned(const AExeFileName: string; out ASignerName: string): Boolean;
+var
+  LSignatureInfo: TSignatureInfo;
+begin
+  Result := GetSignatureInfo(AExeFileName, LSignatureInfo);
+
+  ASignerName := LSignatureInfo.SignerName;
 end;
 
 function IsSignatureValid(const AExeFileName: string; out AErrorMessage: string): Boolean;
@@ -221,5 +262,13 @@ begin
   end;
 end;
 
+function UtcNow: TDateTime;
+var
+  LSystemTime: TSystemTime;
+begin
+  GetSystemTime(LSystemTime);
+
+  Result := SystemTimeToDateTime(LSystemTime);
+end;
 
 end.

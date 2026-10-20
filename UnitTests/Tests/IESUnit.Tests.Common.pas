@@ -1,4 +1,4 @@
-﻿unit CIESUnit.Tests.Common;
+﻿unit IESUnit.Tests.Common;
 
 // Shared by the test fixtures: test files in a temp folder, fake sign tools, and running IsExeSigned.exe.
 
@@ -52,6 +52,8 @@ type
 // IsExeSigned.exe under test: the ISEXESIGNED_EXE environment variable, or the most recently built
 // <repository>\<Win32|Win64>\<Release|Debug>\IsExeSigned.exe
 function IsExeSignedExe: string;
+// Turns the certificate expiration checks off, unless AArguments has a -CertificateExpiration* argument: the signed
+// test files are copies of a Windows file, whose certificate expires when Microsoft's does, not when the tests want
 function RunIsExeSigned(const AArguments: array of string): TRunResult; overload;
 function RunIsExeSigned(const AExeFileName: string; const AArguments: array of string): TRunResult; overload;
 // A Windows file with a valid embedded signature, used as the source of all signed test files
@@ -60,7 +62,7 @@ function SignedSystemFile: string;
 implementation
 
 uses
-  Winapi.Windows, System.IOUtils, System.SysUtils, CIESUnit.Utils;
+  Winapi.Windows, System.IOUtils, System.SysUtils, IESUnit.Utils;
 
 const
   BUILD_CONFIGS: array[0..1] of string = ('Release', 'Debug');
@@ -187,9 +189,17 @@ begin
         LStartupInfo.hStdError := LOutput;
 
         var LCommandLine := QuoteArgument(AExeFileName);
+        var LHasCertificateExpiration := False;
 
         for var LArgument in AArguments do
+        begin
           LCommandLine := LCommandLine + ' ' + QuoteArgument(LArgument);
+
+          LHasCertificateExpiration := LHasCertificateExpiration or LArgument.StartsWith('-CertificateExpiration', True);
+        end;
+
+        if not LHasCertificateExpiration then
+          LCommandLine := LCommandLine + ' -CertificateExpirationWarning:0 -CertificateExpirationError:0';
 
         // CreateProcessW can modify the command line buffer
         UniqueString(LCommandLine);

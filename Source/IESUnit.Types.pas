@@ -1,9 +1,9 @@
-﻿unit CIESUnit.Types;
+﻿unit IESUnit.Types;
 
 interface
 
 uses
-  Winapi.Windows, System.Classes, Delphi.CommandLineParser, CIESUnit.Consts;
+  Winapi.Windows, System.Classes, Delphi.CommandLineParser, IESUnit.Consts;
 
 type
   // Auto: LogOnly if a log is written, otherwise FailOnError. FailOnError: any error sets its exit code. LogOnly: errors
@@ -17,6 +17,8 @@ type
     FRecursive: Boolean;
     FVerify: Boolean;
     FVerifySigners: string;
+    FCertificateExpirationWarning: Integer;
+    FCertificateExpirationError: Integer;
     FSignCommand: string;
     FSignFilter: string;
     FSignTimeout: Integer;
@@ -48,6 +50,12 @@ type
 
     [CLPLongName('VerifySigners'), CLPDescription('Verify only the signatures of matching signers, implies Verify', '<*Signer*[;Signer*]>'), CLPDefault('')]
     property VerifySigners: string read FVerifySigners write FVerifySigners;
+
+    [CLPLongName('CertificateExpirationWarning'), CLPDescription('Warn when the signing certificate expires in this many days or less. Checked for files signed now, and for files of the VerifySigners signers. 0 = off', '<0..3650>'), CLPDefault('60'), CLPRange(0, CERTIFICATE_EXPIRATION_DAYS_MAX)]
+    property CertificateExpirationWarning: Integer read FCertificateExpirationWarning write FCertificateExpirationWarning;
+
+    [CLPLongName('CertificateExpirationError'), CLPDescription('Error when the signing certificate expires in this many days or less, return exit code [8]. Checked like CertificateExpirationWarning. 0 = off', '<0..3650>'), CLPDefault('14'), CLPRange(0, CERTIFICATE_EXPIRATION_DAYS_MAX)]
+    property CertificateExpirationError: Integer read FCertificateExpirationError write FCertificateExpirationError;
 
     [CLPLongName('SignCommand'), CLPDescription('Command to sign unsigned files with, %filename% is replaced with the file name. Return exit code [6] if %filename% is missing', '<C:\SignFile.bat %filename%>'), CLPDefault('')]
     property SignCommand: string read FSignCommand write FSignCommand;
@@ -154,6 +162,16 @@ type
     rgExtension: Pointer;
   end;
   PCERT_INFO = ^CERT_INFO;
+
+  // PCCERT_CONTEXT above is untyped, cast to this to read the fields
+  CERT_CONTEXT = record
+    dwCertEncodingType: DWORD;
+    pbCertEncoded: PByte;
+    cbCertEncoded: DWORD;
+    pCertInfo: PCERT_INFO;
+    hCertStore: HCERTSTORE;
+  end;
+  PCERT_CONTEXT = ^CERT_CONTEXT;
 
   function CryptQueryObject(dwObjectType: DWORD; pvObject: Pointer; dwExpectedContentTypeFlags: DWORD; dwExpectedFormatTypeFlags: DWORD;
     dwFlags: DWORD; pdwMsgAndCertEncodingType: PDWORD; pdwContentType: PDWORD; pdwFormatType: PDWORD;

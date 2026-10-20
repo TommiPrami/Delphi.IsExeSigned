@@ -1,11 +1,11 @@
-﻿unit CIESUnit.Integration.Log.Tests;
+﻿unit IESUnit.Integration.Log.Tests;
 
 // IsExeSigned.exe run as a separate process: the NUnit XML log file.
 
 interface
 
 uses
-  DUnitX.TestFramework, CIESUnit.Tests.Common;
+  DUnitX.TestFramework, IESUnit.Tests.Common;
 
 type
   [TestFixture]
@@ -38,7 +38,7 @@ type
 implementation
 
 uses
-  System.IOUtils, System.SysUtils, CIESUnit.Consts, CIESUnit.Utils;
+  System.IOUtils, System.SysUtils, IESUnit.Consts, IESUnit.Utils;
 
 { TIsExeSignedLogTests }
 
@@ -166,7 +166,7 @@ begin
   Assert.Contains(LLog, 'result="Failed" total="2" passed="1" failed="1"');
   Assert.Contains(LLog, 'Not signed');
 
-  CIESUnit.Utils.IsExeSigned(SignedSystemFile, LSignerName);
+  IESUnit.Utils.IsExeSigned(SignedSystemFile, LSignerName);
 
   Assert.Contains(LLog, 'Signed by "' + LSignerName + '"');
 end;

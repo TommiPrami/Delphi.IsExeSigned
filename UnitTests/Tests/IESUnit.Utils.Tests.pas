@@ -1,15 +1,15 @@
-﻿unit CIESUnit.Utils.Tests;
+﻿unit IESUnit.Utils.Tests;
 
-// CIESUnit.Utils called directly, in this process.
+// IESUnit.Utils called directly, in this process.
 
 interface
 
 uses
-  DUnitX.TestFramework, CIESUnit.Tests.Common;
+  DUnitX.TestFramework, IESUnit.Tests.Common;
 
 type
   [TestFixture]
-  TCIESUtilsTests = class(TObject)
+  TIESUtilsTests = class(TObject)
   strict private
     FFiles: TTestFiles;
   public
@@ -21,6 +21,9 @@ type
     [Test] procedure IsExeSignedIsFalseForMissingFile;
     [Test] procedure IsSignatureValidForSignedFile;
     [Test] procedure IsSignatureValidIsFalseForTamperedFile;
+    [Test] procedure GetSignatureInfoReturnsCertificateExpiration;
+    [Test] procedure GetSignatureInfoIsEmptyForUnsignedFile;
+    [Test] procedure CertificateDaysLeftCountsWholeDays;
 
     [Test] procedure GetFilesReturnsPlainFileNameAsIs;
     [Test] procedure GetFilesMatchesFileNameOnly;
@@ -37,21 +40,29 @@ type
 implementation
 
 uses
-  Winapi.Windows, System.IOUtils, System.SysUtils, CIESUnit.Utils;
+  Winapi.Windows, System.IOUtils, System.SysUtils, IESUnit.Utils;
 
-{ TCIESUtilsTests }
+{ TIESUtilsTests }
 
-procedure TCIESUtilsTests.Setup;
+procedure TIESUtilsTests.Setup;
 begin
   FFiles := TTestFiles.Create;
 end;
 
-procedure TCIESUtilsTests.TearDown;
+procedure TIESUtilsTests.TearDown;
 begin
   FFiles.Free;
 end;
 
-procedure TCIESUtilsTests.GetFilesIsCaseInsensitive;
+procedure TIESUtilsTests.CertificateDaysLeftCountsWholeDays;
+begin
+  Assert.AreEqual(10, CertificateDaysLeft(UtcNow + 10.5));
+  Assert.AreEqual(0, CertificateDaysLeft(UtcNow + 0.5));
+  // Expired half a day ago
+  Assert.AreEqual(-1, CertificateDaysLeft(UtcNow - 0.5));
+end;
+
+procedure TIESUtilsTests.GetFilesIsCaseInsensitive;
 begin
   FFiles.Add('a.exe', tfkUnsigned);
   FFiles.Add('B.Exe', tfkUnsigned);
@@ -59,7 +70,7 @@ begin
   Assert.AreEqual(2, Integer(Length(GetFiles(FFiles.PathOf('*.EXE'), True))));
 end;
 
-procedure TCIESUtilsTests.GetFilesMatchesAnyOfThePatterns;
+procedure TIESUtilsTests.GetFilesMatchesAnyOfThePatterns;
 begin
   FFiles.Add('a.exe', tfkUnsigned);
   FFiles.Add('b.dll', tfkUnsigned);
@@ -68,7 +79,7 @@ begin
   Assert.AreEqual(2, Integer(Length(GetFiles(FFiles.PathOf('*.exe;*.dll'), True))));
 end;
 
-procedure TCIESUtilsTests.GetFilesMatchesFileNameOnly;
+procedure TIESUtilsTests.GetFilesMatchesFileNameOnly;
 begin
   var LExpected := FFiles.Add('Sub\Sx12.exe', tfkUnsigned);
   // 'S*' would match these too, if the pattern was matched against the path after the directory
@@ -81,7 +92,7 @@ begin
   Assert.AreEqual(LExpected, LFiles[0]);
 end;
 
-procedure TCIESUtilsTests.GetFilesReturnsPlainFileNameAsIs;
+procedure TIESUtilsTests.GetFilesReturnsPlainFileNameAsIs;
 begin
   // '[', ']' and '#' are allowed in file names, so this is not a pattern
   var LFileName := FFiles.PathOf('App[x64] #2.exe');
@@ -92,7 +103,7 @@ begin
   Assert.AreEqual(LFileName, LFiles[0]);
 end;
 
-procedure TCIESUtilsTests.GetFilesWithoutRecurseSkipsSubDirs;
+procedure TIESUtilsTests.GetFilesWithoutRecurseSkipsSubDirs;
 begin
   FFiles.Add('a.exe', tfkUnsigned);
   FFiles.Add('Sub\b.exe', tfkUnsigned);
@@ -101,7 +112,31 @@ begin
   Assert.AreEqual(2, Integer(Length(GetFiles(FFiles.PathOf('*.exe'), True))));
 end;
 
-procedure TCIESUtilsTests.IsExeSignedIsFalseForMissingFile;
+procedure TIESUtilsTests.GetSignatureInfoIsEmptyForUnsignedFile;
+var
+  LSignatureInfo: TSignatureInfo;
+begin
+  Assert.IsFalse(GetSignatureInfo(FFiles.Add('Unsigned.exe', tfkUnsigned), LSignatureInfo));
+  Assert.AreEqual('', LSignatureInfo.SignerName);
+  Assert.IsTrue(LSignatureInfo.CertificateExpiration = 0.0);
+end;
+
+procedure TIESUtilsTests.GetSignatureInfoReturnsCertificateExpiration;
+var
+  LExpected: TSignatureInfo;
+  LSignatureInfo: TSignatureInfo;
+begin
+  GetSignatureInfo(SignedSystemFile, LExpected);
+
+  Assert.IsTrue(GetSignatureInfo(FFiles.Add('Signed.exe', tfkSigned), LSignatureInfo));
+  Assert.AreEqual(LExpected.SignerName, LSignatureInfo.SignerName);
+  Assert.IsTrue(LExpected.CertificateExpiration = LSignatureInfo.CertificateExpiration);
+  // A real date: signing certificates of Windows files are valid for about a year or two
+  Assert.IsTrue((LSignatureInfo.CertificateExpiration > EncodeDate(2020, 1, 1))
+    and (LSignatureInfo.CertificateExpiration < EncodeDate(2100, 1, 1)), DateTimeToStr(LSignatureInfo.CertificateExpiration));
+end;
+
+procedure TIESUtilsTests.IsExeSignedIsFalseForMissingFile;
 var
   LSignerName: string;
 begin
@@ -109,7 +144,7 @@ begin
   Assert.AreEqual('', LSignerName);
 end;
 
-procedure TCIESUtilsTests.IsExeSignedIsFalseForUnsignedFile;
+procedure TIESUtilsTests.IsExeSignedIsFalseForUnsignedFile;
 var
   LSignerName: string;
 begin
@@ -117,7 +152,7 @@ begin
   Assert.AreEqual('', LSignerName);
 end;
 
-procedure TCIESUtilsTests.IsExeSignedReturnsSignerName;
+procedure TIESUtilsTests.IsExeSignedReturnsSignerName;
 var
   LExpectedSignerName: string;
   LSignerName: string;
@@ -129,7 +164,7 @@ begin
   Assert.AreEqual(LExpectedSignerName, LSignerName);
 end;
 
-procedure TCIESUtilsTests.IsSignatureValidForSignedFile;
+procedure TIESUtilsTests.IsSignatureValidForSignedFile;
 var
   LErrorMessage: string;
 begin
@@ -137,7 +172,7 @@ begin
   Assert.AreEqual('', LErrorMessage);
 end;
 
-procedure TCIESUtilsTests.IsSignatureValidIsFalseForTamperedFile;
+procedure TIESUtilsTests.IsSignatureValidIsFalseForTamperedFile;
 var
   LErrorMessage: string;
   LSignerName: string;
@@ -151,7 +186,7 @@ begin
   Assert.Contains(LErrorMessage, '0x80096010');
 end;
 
-procedure TCIESUtilsTests.RunSignFileCommandDoesNotQuoteTwice;
+procedure TIESUtilsTests.RunSignFileCommandDoesNotQuoteTwice;
 var
   LExitCode: Cardinal;
 begin
@@ -165,7 +200,7 @@ begin
   Assert.AreEqual('"' + LFileName + '"', FFiles.SignToolLog.Trim);
 end;
 
-procedure TCIESUtilsTests.RunSignFileCommandPassesQuotedFileName;
+procedure TIESUtilsTests.RunSignFileCommandPassesQuotedFileName;
 var
   LExitCode: Cardinal;
   LSignerName: string;
@@ -179,7 +214,7 @@ begin
   Assert.IsTrue(IsExeSigned(LFileName, LSignerName), 'Sign tool did not sign the file');
 end;
 
-procedure TCIESUtilsTests.RunSignFileCommandReturnsExitCode;
+procedure TIESUtilsTests.RunSignFileCommandReturnsExitCode;
 var
   LExitCode: Cardinal;
 begin
@@ -190,7 +225,7 @@ begin
   Assert.AreEqual(7, Integer(LExitCode));
 end;
 
-procedure TCIESUtilsTests.RunSignFileCommandTimeoutStopsProcessTree;
+procedure TIESUtilsTests.RunSignFileCommandTimeoutStopsProcessTree;
 var
   LExitCode: Cardinal;
 begin

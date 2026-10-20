@@ -16,11 +16,11 @@ uses
   Delphi.CommandLineParser in 'Source\3rdParty\Delphi.CommandLineParser\Delphi.CommandLineParser.pas',
   Delphi.WildCardMatcher in 'Source\3rdParty\Delphi.WildCardMatcher\Source\Delphi.WildCardMatcher.pas',
   DNLUnit.NUnitLogger in 'Source\3rdParty\Delphi.NUnitLogger\Source\DNLUnit.NUnitLogger.pas',
-  CIESUnit.Consts in 'Source\CIESUnit.Consts.pas',
-  CIESUnit.Commandline in 'Source\CIESUnit.Commandline.pas',
-  CIESUnit.Runner in 'Source\CIESUnit.Runner.pas',
-  CIESUnit.Types in 'Source\CIESUnit.Types.pas',
-  CIESUnit.Utils in 'Source\CIESUnit.Utils.pas';
+  IESUnit.Commandline in 'Source\IESUnit.Commandline.pas',
+  IESUnit.Consts in 'Source\IESUnit.Consts.pas',
+  IESUnit.Runner in 'Source\IESUnit.Runner.pas',
+  IESUnit.Types in 'Source\IESUnit.Types.pas',
+  IESUnit.Utils in 'Source\IESUnit.Utils.pas';
 
 begin
   try
@@ -28,7 +28,7 @@ begin
     try
       if ParseCommandLine(LCommandLine) then
       begin
-        var LRunner := TCIESRunner.Create(LCommandLine);
+        var LRunner := TIESRunner.Create(LCommandLine);
         try
           LRunner.Run;
         finally

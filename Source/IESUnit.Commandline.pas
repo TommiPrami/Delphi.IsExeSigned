@@ -1,9 +1,9 @@
-﻿unit CIESUnit.Commandline;
+﻿unit IESUnit.Commandline;
 
 interface
 
 uses
-  Delphi.CommandLineParser, CIESUnit.Consts, CIESUnit.Types;
+  Delphi.CommandLineParser, IESUnit.Consts, IESUnit.Types;
 
   function ParamValueErrorText(const AParamName, AErrorSuffix: string): string;
   function ParseCommandLine(const AParameters: TCommandLineParameters): Boolean;
@@ -13,10 +13,6 @@ implementation
 
 uses
   System.StrUtils, System.SysUtils, System.TypInfo, Delphi.WildCardMatcher;
-
-const
-  // Length of the longest parameter name, ContinueOnSignTimeout
-  SETTING_NAME_WIDTH = 21;
 
 procedure WriteSetting(const AName, AValue: string);
 begin
@@ -49,6 +45,8 @@ begin
   WriteSetting('Recursive', BooleanText(AParameters.Recursive));
   WriteSetting('Verify', BooleanText(AParameters.GetEffectiveVerify));
   WriteSetting('VerifySigners', QuotedText(AParameters.VerifySigners));
+  WriteSetting('CertificateExpirationWarning', AParameters.CertificateExpirationWarning.ToString);
+  WriteSetting('CertificateExpirationError', AParameters.CertificateExpirationError.ToString);
   WriteSetting('SignCommand', QuotedText(AParameters.SignCommand));
   WriteSetting('SignFilter', QuotedText(AParameters.SignFilter));
   WriteSetting('SignTimeout', AParameters.SignTimeout.ToString);
@@ -117,6 +115,14 @@ begin
   else if AParameters.SignCommand.IsEmpty and not AParameters.SignFilter.IsEmpty then
   begin
     SetParamValueError(PARAM_SIGN_FILTER, 'can not be used without ' + PARAM_SIGN_COMMAND);
+
+    Result := False;
+  end
+  // Both on and the error limit above the warning limit: the warning could never show, likely the values are swapped
+  else if (AParameters.CertificateExpirationWarning > 0)
+    and (AParameters.CertificateExpirationError > AParameters.CertificateExpirationWarning) then
+  begin
+    SetParamValueError(PARAM_CERTIFICATE_EXPIRATION_ERROR, 'must not be greater than ' + PARAM_CERTIFICATE_EXPIRATION_WARNING);
 
     Result := False;
   end;

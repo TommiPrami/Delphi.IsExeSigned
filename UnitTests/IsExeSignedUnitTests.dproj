@@ -100,16 +100,17 @@
         </DelphiCompile>
         <DCCReference Include="..\Source\3rdParty\Delphi.CommandLineParser\Delphi.CommandLineParser.pas"/>
         <DCCReference Include="..\Source\3rdParty\Delphi.WildCardMatcher\Source\Delphi.WildCardMatcher.pas"/>
-        <DCCReference Include="..\Source\CIESUnit.Consts.pas"/>
-        <DCCReference Include="..\Source\CIESUnit.Types.pas"/>
-        <DCCReference Include="..\Source\CIESUnit.Utils.pas"/>
-        <DCCReference Include="Tests\CIESUnit.Tests.Common.pas"/>
-        <DCCReference Include="Tests\CIESUnit.Utils.Tests.pas"/>
-        <DCCReference Include="Tests\CIESUnit.Types.Tests.pas"/>
-        <DCCReference Include="Tests\CIESUnit.Integration.Parameters.Tests.pas"/>
-        <DCCReference Include="Tests\CIESUnit.Integration.Check.Tests.pas"/>
-        <DCCReference Include="Tests\CIESUnit.Integration.Signing.Tests.pas"/>
-        <DCCReference Include="Tests\CIESUnit.Integration.Log.Tests.pas"/>
+        <DCCReference Include="..\Source\IESUnit.Consts.pas"/>
+        <DCCReference Include="..\Source\IESUnit.Types.pas"/>
+        <DCCReference Include="..\Source\IESUnit.Utils.pas"/>
+        <DCCReference Include="Tests\IESUnit.Tests.Common.pas"/>
+        <DCCReference Include="Tests\IESUnit.Utils.Tests.pas"/>
+        <DCCReference Include="Tests\IESUnit.Types.Tests.pas"/>
+        <DCCReference Include="Tests\IESUnit.Integration.Parameters.Tests.pas"/>
+        <DCCReference Include="Tests\IESUnit.Integration.Check.Tests.pas"/>
+        <DCCReference Include="Tests\IESUnit.Integration.Signing.Tests.pas"/>
+        <DCCReference Include="Tests\IESUnit.Integration.Log.Tests.pas"/>
+        <DCCReference Include="Tests\IESUnit.Integration.Certificate.Tests.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

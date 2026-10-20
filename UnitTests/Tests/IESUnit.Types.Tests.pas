@@ -1,11 +1,11 @@
-﻿unit CIESUnit.Types.Tests;
+﻿unit IESUnit.Types.Tests;
 
 // TCommandLineParameters called directly, in this process.
 
 interface
 
 uses
-  DUnitX.TestFramework, CIESUnit.Types;
+  DUnitX.TestFramework, IESUnit.Types;
 
 type
   [TestFixture]
@@ -31,7 +31,7 @@ type
 implementation
 
 uses
-  System.SysUtils, CIESUnit.Consts;
+  System.SysUtils, IESUnit.Consts;
 
 { TCommandLineParametersTests }
 
