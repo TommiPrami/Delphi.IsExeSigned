@@ -106,7 +106,8 @@ type
     procedure EndTestCase;
 
     property Asserts: Integer read FAsserts write FAsserts;
-    // Failed and errored test cases: failure message, others: reason message (written only if not empty)
+    // Written only if not empty. Failed and errored test cases: failure message, passed and warning ones: output,
+    // skipped and inconclusive ones: reason message
     property Message: string read FMessage write FMessage;
     // Written only for failed and errored test cases
     property StackTrace: string read FStackTrace write FStackTrace;
@@ -524,16 +525,24 @@ begin
     WriteLine(4, '</failure>');
     WriteLine(3, '</test-case>');
   end
-  else if not ATestCase.Message.IsEmpty then
+  else if ATestCase.Message.IsEmpty then
+    WriteLine(3, LStartTag + ' />')
+  else if ATestCase.TestResult in [ntrPassed, ntrWarning] then
+  begin
+    // The test case ran, so its message is output, not a reason: reason is for test cases that did not run, and some
+    // consumers show every test case with a reason as skipped, whatever its result
+    WriteLine(3, LStartTag + '>');
+    WriteLine(4, '<output>' + XmlCData(ATestCase.Message) + '</output>');
+    WriteLine(3, '</test-case>');
+  end
+  else
   begin
     WriteLine(3, LStartTag + '>');
     WriteLine(4, '<reason>');
     WriteLine(5, '<message>' + XmlCData(ATestCase.Message) + '</message>');
     WriteLine(4, '</reason>');
     WriteLine(3, '</test-case>');
-  end
-  else
-    WriteLine(3, LStartTag + ' />');
+  end;
 end;
 
 procedure TNUnitXmlWriter.WriteTestSuite(const ATestSuite: TNUnitTestSuite; const ASummary: TNUnitSummary;

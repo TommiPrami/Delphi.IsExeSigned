@@ -37,6 +37,7 @@ type
     [Test] procedure FailedSuitesGetChildFailure;
     [Test] procedure FailureHasMessageAndStackTrace;
     [Test] procedure ReasonIsWrittenOnlyWithMessage;
+    [Test] procedure PassedAndWarningMessageIsOutput;
     [Test] procedure SpecialCharactersRoundTrip;
     [Test] procedure InvalidXmlCharactersAreReplaced;
     [Test] procedure FileIsUtf8WithoutBomAndIndented;
@@ -420,6 +421,29 @@ begin
   Assert.AreEqual(0, NodeCount(FIXTURE_PATH + '/test-case/reason'), 'reason');
 end;
 
+procedure TNUnitLoggerTests.PassedAndWarningMessageIsOutput;
+var
+  LLogger: TNUnitLogger;
+  LTestSuite: TNUnitTestSuite;
+begin
+  LLogger := TNUnitLogger.Create;
+  try
+    LTestSuite := LLogger.AddTestSuite('Outputs', False);
+    LTestSuite.AddTestCase('PassedWithMessage', ntrPassed, 'All good').EndTestCase;
+    LTestSuite.AddTestCase('WarningWithMessage', ntrWarning, 'Almost expired').EndTestCase;
+
+    SaveAndLoad(LLogger);
+  finally
+    LLogger.Free;
+  end;
+
+  // A reason would make some consumers show these test cases as skipped
+  Assert.AreEqual('All good', Value(FIXTURE_PATH + '/test-case[1]/output'), 'passed');
+  Assert.AreEqual('Almost expired', Value(FIXTURE_PATH + '/test-case[2]/output'), 'warning');
+  Assert.AreEqual(0, NodeCount(FIXTURE_PATH + '/test-case/reason'), 'reason');
+  Assert.AreEqual(0, NodeCount(FIXTURE_PATH + '/test-case/failure'), 'failure');
+end;
+
 procedure TNUnitLoggerTests.ReasonIsWrittenOnlyWithMessage;
 var
   LLogger: TNUnitLogger;
@@ -440,7 +464,8 @@ begin
   end;
 
   Assert.AreEqual('Not applicable', Value(FIXTURE_PATH + '/test-case[1]/reason/message'), 'skipped');
-  Assert.AreEqual('All good', Value(FIXTURE_PATH + '/test-case[2]/reason/message'), 'passed');
+  // Passed with a message gets output instead, see PassedAndWarningMessageIsOutput
+  Assert.AreEqual(0, NodeCount(FIXTURE_PATH + '/test-case[2]/reason'), 'passed with message');
   Assert.AreEqual(0, NodeCount(FIXTURE_PATH + '/test-case[3]/*'), 'passed without message');
   Assert.AreEqual(0, NodeCount(FIXTURE_PATH + '/test-case[4]/*'), 'stack trace only');
   Assert.AreEqual('Could not decide', Value(FIXTURE_PATH + '/test-case[5]/reason/message'), 'inconclusive');
